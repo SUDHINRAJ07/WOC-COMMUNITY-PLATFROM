@@ -15,6 +15,8 @@ import {api} from '@/lib/api';
 import {programImage,moduleImage} from '@/lib/images';
 import {useWoc,Registration} from './Platform';
 import MobileAuthForm from './MobileAuthForm';
+import {useFirebasePhone} from '@/lib/use-firebase-phone';
+import {phoneError} from '@/lib/firebase-phone';
 const icons=[Users,BookOpen,Briefcase,Rocket,Calendar,Globe,Trophy,Music];
 export function Reveal({children,className=''}:{children:ReactNode;className?:string}){const reduce=useReducedMotion();return <motion.div className={className} initial={false} whileInView={reduce?{}:{y:[16,0],opacity:[.75,1]}} viewport={{once:true,amount:.12}} transition={{duration:.55,ease:'easeOut'}}>{children}</motion.div>}
 function Eyebrow({children}:{children:ReactNode}){return <p className="eyebrow">{children}</p>}
@@ -224,7 +226,7 @@ function Auth({mode}:{mode:string}){
   <section className="auth-form"><div className="auth-panel">
    <Eyebrow>WELCOME TO THE WOC</Eyebrow>
    <h1>{mode==='register'?'Find your place.':mode==='verify'?'Email verification.':mode==='forgot-password'?'Reset your password.':mode==='reset-password'?'Set new password.':'Good to see you.'}</h1>
-   <p>{demo?'Showcase mode: use any email and an 8-character password to explore. Do not enter a real password.':mode==='register'?(method==='mobile'?'Create your student account with a mobile verification code.':'Create your student account. Verify your email before signing in.'):mode==='verify'?'Confirming your student credentials.':mode==='forgot-password'?'Enter your registered email address and we will send you a secure link to reset your password.':mode==='reset-password'?'Choose a strong, secure password for your WOC student account.':method==='mobile'?'Sign in with a code sent to your verified mobile number.':'Sign in to your WOC account.'}</p>
+   <p>{demo?'Showcase mode: use any email and an 8-character password to explore. Do not enter a real password.':mode==='register'?(method==='mobile'?'Create your account through Email or Google, then securely link your mobile number.':'Create your student account. Verify your email before signing in.'):mode==='verify'?'Confirming your student credentials.':mode==='forgot-password'?'Enter your registered email address and we will send you a secure link to reset your password.':mode==='reset-password'?'Choose a strong, secure password for your WOC student account.':method==='mobile'?'Sign in with a code sent to your verified mobile number.':'Sign in to your WOC account.'}</p>
    {user&&<Link href="/dashboard/" className="text-link">Continue to dashboard</Link>}
    {mode==='verify'?(
     <div>
@@ -341,7 +343,7 @@ function Auth({mode}:{mode:string}){
       <button type="button" role="tab" aria-selected={method==='email'} onClick={()=>{setMethod('email');setError('')}}>Email</button>
       <button type="button" role="tab" aria-selected={method==='mobile'} onClick={()=>{setMethod('mobile');setError('')}}>Mobile OTP</button>
      </div>
-     {method==='mobile'?<MobileAuthForm key={mode} mode={mode==='register'?'register':'login'}/>:<>
+     {method==='mobile'?<MobileAuthForm key={mode} mode={mode==='register'?'register':'login'} onEmailSignup={()=>setMethod('email')}/>:<>
      {googleAvailable&&<><button type="button" className="google-btn" disabled={busy} onClick={handleGoogleLogin}>
       <GoogleIcon/> Continue with Google
      </button>
@@ -473,7 +475,7 @@ function PhoneVerification(){
  const {user,setUser,demo,toast}=useWoc();
  const [phone,setPhone]=useState(user?.phone_number||'');
  const [countryCode,setCountryCode]=useState('+91');
- const [challengeId,setChallengeId]=useState('');
+ const firebase=useFirebasePhone();
  const [otp,setOtp]=useState('');
  const [step,setStep]=useState<'idle'|'otp_sent'|'verified'>(user?.phone_verified?'verified':'idle');
  const [cooldown,setCooldown]=useState(0);
@@ -501,31 +503,29 @@ function PhoneVerification(){
 
  async function sendOtp(e?:React.FormEvent){
   if(e)e.preventDefault();
-  if(!phone||cooldown>0)return;
+  if(busy||!phone||cooldown>0)return;
   setBusy(true);setError('');setMsg('');setDevOtp('');
   try{
    if(demo){
-    setChallengeId('demo-challenge');
     setStep('otp_sent');
     setCooldown(60);
     setExpiresIn(300);
-    setMsg('Demo OTP sent: use 123456 to verify.');
+    setMsg('Demo preview only. No SMS was sent. Use 123456.');
     setDevOtp('123456');
     return;
    }
-   const d=await api('/phone/send-otp/','POST',{phone,country_code:countryCode});
-   setChallengeId(d.challenge_id);
+   const normalized=await firebase.send(phone,countryCode);
+   setPhone(normalized);setOtp('');
    setStep('otp_sent');
    setCooldown(60);
-   setExpiresIn(d.expires_in||300);
-   setMsg(d.message);
-   if(d.development_otp)setDevOtp(d.development_otp);
-  }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+   setExpiresIn(300);
+   setMsg('Verification requested. Enter the code for your number.');
+  }catch(e){setError(phoneError(e))}finally{setBusy(false)}
  }
 
  async function verifyOtp(e:React.FormEvent){
   e.preventDefault();
-  if(!otp||otp.length!==6)return;
+  if(busy||!otp||otp.length!==6||expiresIn<=0)return;
   setBusy(true);setError('');setMsg('');
   try{
    if(demo){
@@ -536,11 +536,12 @@ function PhoneVerification(){
      return;
     }else{throw new Error('Incorrect demo OTP. Enter 123456.')}
    }
-   const d=await api('/phone/verify-otp/','POST',{challenge_id:challengeId,otp});
-   setUser({...user!,phone_number:d.phone,phone_verified:true});
+   const idToken=await firebase.verify(otp);
+   const d=await api('/phone/firebase-verify/','POST',{id_token:idToken});
+   setUser(d.user);firebase.reset();
    setStep('verified');
    toast('Mobile number verified successfully.');
-  }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }catch(e){setError(phoneError(e))}finally{setBusy(false)}
  }
 
  return <div className="panel" style={{marginTop:'24px'}}>
@@ -553,15 +554,16 @@ function PhoneVerification(){
    )}
   </div>
   <p style={{fontSize:'13px',color:'var(--muted)',marginTop:0}}>
-   Verify your mobile number to receive timely updates on sports matches, cultural auditions, and hackathons via SMS.
+   Securely link your mobile number using Firebase OTP. SMS verification does not subscribe you to event messages.
   </p>
+  <div ref={firebase.container} style={{display:'contents'}}/>
   {step==='verified'?(
    <div className="success-box">
     <CheckCircle size={18}/>
     <div>
      <strong>Verified mobile number: {user?.phone_number}</strong>
      <p style={{fontSize:'12px',margin:'4px 0 0'}}>Your mobile is securely linked to your WOC account.</p>
-     <button type="button" className="text-link" style={{marginTop:'8px',fontSize:'12px'}} onClick={()=>setStep('idle')}>Change mobile number</button>
+     <button type="button" className="text-link" style={{marginTop:'8px',fontSize:'12px'}} onClick={()=>{firebase.reset();setStep('idle');setCooldown(0);setOtp('');setError('');setMsg('')}}>Change mobile number</button>
     </div>
    </div>
   ):step==='idle'?(
@@ -579,7 +581,7 @@ function PhoneVerification(){
      </div>
     </label>
     {error&&<p className="form-error" role="alert">{error}</p>}
-    <button className="button" disabled={busy||!phone}>
+    <button className="button" disabled={busy||!phone||cooldown>0}>
      {busy?'Sending OTP…':'Send Verification OTP'}
     </button>
    </form>
@@ -611,7 +613,7 @@ function PhoneVerification(){
       <button type="button" className="button outline small" disabled={busy||cooldown>0} onClick={sendOtp}>
        {cooldown>0?`Resend in ${cooldown}s`:'Resend OTP'}
       </button>
-      <button type="button" className="text-link" style={{fontSize:'13px',marginLeft:'auto'}} onClick={()=>{setStep('idle');setOtp('')}}>Cancel</button>
+      <button type="button" className="text-link" style={{fontSize:'13px',marginLeft:'auto'}} disabled={busy} onClick={()=>{firebase.reset();setStep('idle');setOtp('');setError('')}}>Cancel</button>
      </div>
     </form>
    </div>

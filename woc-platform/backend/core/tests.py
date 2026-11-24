@@ -91,68 +91,12 @@ class WorkflowTests(TestCase):
   login_resp=self.client.post('/api/login/',{'email':'unverified@example.test','password':'StrongPass#2026'},content_type='application/json')
   self.assertEqual(login_resp.status_code,403)
   self.assertIn('Verify your email',login_resp.json()['error'])
- def test_phone_otp_send_and_verify_success(self):
-  self.client.force_login(self.user)
-  with self.settings(DEBUG=True,SMS_DEV_MODE=True,SMS_PROVIDER='test_mode'):
-   send_resp=self.client.post('/api/phone/send-otp/',{'phone':'9876543210','country_code':'+91'},content_type='application/json')
-  self.assertEqual(send_resp.status_code,200)
-  data=send_resp.json()
-  self.assertEqual(data['phone'],'+919876543210')
-  self.assertIn('challenge_id',data)
-  otp=data.get('development_otp')
-  self.assertIsNotNone(otp)
-  challenge=PhoneOTPChallenge.objects.get(id=data['challenge_id'])
-  self.assertNotEqual(challenge.otp_hash,otp)
-  # Verify with correct OTP
-  ver_resp=self.client.post('/api/phone/verify-otp/',{'challenge_id':data['challenge_id'],'otp':otp},content_type='application/json')
-  self.assertEqual(ver_resp.status_code,200)
-  self.user.profile.refresh_from_db()
-  self.assertTrue(self.user.profile.phone_verified)
-  self.assertEqual(self.user.profile.phone_number,'+919876543210')
-  self.assertIsNotNone(self.user.profile.phone_verified_at)
- def test_phone_otp_resend_cooldown(self):
-  with self.settings(DEBUG=True,SMS_DEV_MODE=True,SMS_PROVIDER='test_mode'):
-   resp1=self.client.post('/api/phone/send-otp/',{'phone':'9123456780'},content_type='application/json')
-   self.assertEqual(resp1.status_code,200)
-   # Immediate second request hits cooldown
-   resp2=self.client.post('/api/phone/resend-otp/',{'phone':'9123456780'},content_type='application/json')
-   self.assertEqual(resp2.status_code,429)
-   self.assertIn('60 seconds',resp2.json()['error'])
- def test_phone_otp_max_3_attempts_enforced(self):
-  with self.settings(DEBUG=True,SMS_DEV_MODE=True,SMS_PROVIDER='test_mode'):
-   send_resp=self.client.post('/api/phone/send-otp/',{'phone':'9988776655'},content_type='application/json')
-  cid=send_resp.json()['challenge_id']
-  # Attempt 1 wrong
-  r1=self.client.post('/api/phone/verify-otp/',{'challenge_id':cid,'otp':'000000'},content_type='application/json')
-  self.assertEqual(r1.status_code,400)
-  self.assertIn('2 attempt(s) remaining',r1.json()['error'])
-  # Attempt 2 wrong
-  r2=self.client.post('/api/phone/verify-otp/',{'challenge_id':cid,'otp':'111111'},content_type='application/json')
-  self.assertEqual(r2.status_code,400)
-  self.assertIn('1 attempt(s) remaining',r2.json()['error'])
-  # Attempt 3 wrong -> locked
-  r3=self.client.post('/api/phone/verify-otp/',{'challenge_id':cid,'otp':'222222'},content_type='application/json')
-  self.assertEqual(r3.status_code,400)
-  self.assertIn('Maximum verification attempts exceeded',r3.json()['error'])
-  # Attempt 4 (even with correct code) is blocked
-  correct_otp=send_resp.json().get('development_otp')
-  r4=self.client.post('/api/phone/verify-otp/',{'challenge_id':cid,'otp':correct_otp},content_type='application/json')
-  self.assertEqual(r4.status_code,400)
- def test_phone_otp_expiration(self):
-  from datetime import timedelta
-  from django.utils import timezone
-  from django.contrib.auth.hashers import make_password
-  c=PhoneOTPChallenge.objects.create(
-   phone_number='+919999999999',
-   otp_hash=make_password('123456'),
-   expires_at=timezone.now()-timedelta(minutes=1)
-  )
-  resp=self.client.post('/api/phone/verify-otp/',{'challenge_id':str(c.id),'otp':'123456'},content_type='application/json')
-  self.assertEqual(resp.status_code,400)
-  self.assertIn('expired',resp.json()['error'])
- def test_invalid_phone_format_rejected(self):
-  resp=self.client.post('/api/phone/send-otp/',{'phone':'12345'},content_type='application/json')
-  self.assertEqual(resp.status_code,400)
+ def test_legacy_phone_routes_are_retired(self):
+  before=User.objects.count()
+  for path in ['phone/send-otp/','phone/resend-otp/','phone/verify-otp/','auth/phone/']:
+   response=self.client.post('/api/'+path,{'action':'register','phone':'9876543210'},content_type='application/json')
+   self.assertEqual(response.status_code,410)
+  self.assertEqual(User.objects.count(),before)
  def test_google_auth_signup_new_user(self):
   self.client.logout()
   token='mock-google-token:newgoogler@example.test:sub-goog-101:Google Learner'

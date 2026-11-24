@@ -7,3 +7,4 @@ redis>=6,<8
 django-storages[s3]>=1.14,<2
 django-otp>=1.6,<2
 python-dotenv>=1,<2
+firebase-admin>=7,<8

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from core import views as v
+from core import firebase_views as fv
 from django_otp.admin import OTPAdminSite
 admin.site.__class__=OTPAdminSite
 urlpatterns=[
@@ -11,10 +12,12 @@ urlpatterns=[
  path('api/login/',v.sign_in),
  path('api/verify/',v.verify),
  path('api/resend-verification/',v.resend_verification),
- path('api/phone/send-otp/',v.send_phone_otp),
- path('api/auth/phone/',v.phone_auth),
- path('api/phone/verify-otp/',v.verify_phone_otp),
- path('api/phone/resend-otp/',v.resend_phone_otp),
+ path('api/phone/firebase-verify/',fv.link_phone),
+ path('api/auth/firebase-phone/',fv.phone_login),
+ path('api/phone/send-otp/',fv.legacy_phone_disabled),
+ path('api/auth/phone/',fv.legacy_phone_disabled),
+ path('api/phone/verify-otp/',fv.legacy_phone_disabled),
+ path('api/phone/resend-otp/',fv.legacy_phone_disabled),
  path('api/auth/google/url/',v.google_auth_url),
  path('api/auth/google/',v.google_auth),
  path('api/password-reset/request/',v.request_password_reset),

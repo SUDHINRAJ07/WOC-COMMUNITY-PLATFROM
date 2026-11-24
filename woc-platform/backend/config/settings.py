@@ -90,6 +90,8 @@ MSG91_AUTH_KEY=os.getenv('MSG91_AUTH_KEY','')
 MSG91_SENDER_ID=os.getenv('MSG91_SENDER_ID','WOCIND')
 MSG91_TEMPLATE_ID=os.getenv('MSG91_TEMPLATE_ID','')
 GOOGLE_CLIENT_ID=os.getenv('GOOGLE_CLIENT_ID','')
+FIREBASE_PROJECT_ID=os.getenv('FIREBASE_PROJECT_ID','woc-29231')
+FIREBASE_PHONE_MAX_AGE=300
 GOOGLE_CLIENT_SECRET=os.getenv('GOOGLE_CLIENT_SECRET','')
 GOOGLE_REDIRECT_URI=os.getenv('GOOGLE_REDIRECT_URI',f"{FRONTEND_URL}/verify/?google_callback=true")
 REST_FRAMEWORK={'DEFAULT_AUTHENTICATION_CLASSES':['core.auth.CsrfSessionAuthentication'],'DEFAULT_PERMISSION_CLASSES':['rest_framework.permissions.IsAuthenticatedOrReadOnly'],'DEFAULT_THROTTLE_CLASSES':['rest_framework.throttling.AnonRateThrottle','rest_framework.throttling.UserRateThrottle'],'DEFAULT_THROTTLE_RATES':{'anon':'100/hour','user':'1000/hour'}}
