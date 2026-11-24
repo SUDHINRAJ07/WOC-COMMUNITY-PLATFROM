@@ -1,0 +1,46 @@
+/* Authentication screens only. The marketing site retains its existing styles. */
+.auth-refresh{background:var(--cream);align-items:stretch;min-height:calc(100svh / .9 - 132px)}
+.auth-refresh .auth-form{margin:0;padding:30px 9%;display:flex;align-items:center;justify-content:center;align-self:stretch;background:#fff;min-width:0}
+.auth-refresh .auth-panel{width:100%;max-width:560px}
+.auth-refresh .auth-form>.auth-panel>.eyebrow{font-size:14px;letter-spacing:.08em;margin-bottom:8px}
+.auth-refresh .auth-form h1{font-size:clamp(32px,3vw,42px);line-height:1.12;margin:0 0 10px}
+.auth-refresh .auth-panel>p{font-size:14px;line-height:1.6;margin-bottom:20px}
+.auth-refresh .auth-panel>p:last-child{margin:18px 0 0;font-size:14px}
+.auth-method-tabs{display:flex;background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:4px;gap:4px;margin:0 0 20px}
+.auth-method-tabs button{flex:1;background:transparent;color:var(--muted);border-radius:5px;padding:10px 12px;font-size:15px;font-weight:500;min-height:42px}
+.auth-method-tabs button[aria-selected=true]{background:#fff;color:var(--red);box-shadow:0 2px 6px #0000000a}
+.auth-refresh .auth-email-form,.auth-refresh .auth-mobile-form{display:block;margin:0;flex:none}
+.auth-refresh .auth-form label{font-size:14px;line-height:1.5;margin-bottom:14px}
+.auth-refresh .auth-form input:not([type=checkbox]):not([type=radio]),.auth-refresh .auth-form select{height:44px;padding:9px 12px;font-size:16px;margin-top:6px}
+.auth-refresh .auth-form .button{min-height:44px;padding:11px 18px}
+.auth-refresh .auth-form .checkbox{display:block;position:relative;padding-left:24px;font-size:12px;line-height:1.5}
+.auth-refresh .auth-form .checkbox input{position:absolute;left:0;top:2px;margin:0}
+.auth-refresh .auth-panel .text-link{margin-block:0}
+.auth-refresh .auth-form .auth-register-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 16px}
+.auth-refresh .auth-register-form>.two-grid{display:contents}
+.auth-refresh .auth-register-form>label{margin:0}
+.auth-refresh .auth-register-form .two-grid>label{margin:0}
+.auth-register-form>.auth-password-field,.auth-register-form>.checkbox,.auth-register-form>.button,.auth-wide{grid-column:1/-1}
+.auth-refresh .auth-password-field{margin-bottom:14px!important}
+.auth-refresh .auth-register-form>.auth-password-field{margin-bottom:0!important}
+.auth-staff{font-size:13px;color:var(--muted);margin:0 0 16px}
+.auth-staff summary{cursor:pointer;padding:4px 0}
+.auth-staff label{margin-top:8px}
+.auth-phone-row{display:flex;gap:8px}
+.auth-refresh .auth-phone-row select{width:116px;flex-shrink:0}
+.auth-phone-row input{min-width:0}
+.auth-code-step{padding:14px;background:var(--cream);border:1px solid var(--line);border-radius:8px;margin:12px 0}
+.auth-code-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.auth-code-heading:last-of-type{margin-bottom:0}
+.auth-inline-action{background:none;color:var(--red);font:inherit;font-size:13px;padding:0;white-space:nowrap}
+.auth-inline-action:disabled{color:var(--muted)}
+.auth-code-step input[autocomplete=one-time-code]{letter-spacing:.3em;font-size:20px!important}
+.auth-helper{font-size:12px;line-height:1.6;color:var(--muted);margin:12px 0 0}
+.auth-consents{display:grid;gap:8px}
+.auth-refresh .auth-consents .checkbox{margin:0}
+.auth-refresh .form-error{margin-block:8px;line-height:1.5}
+@media(min-width:861px){.auth-refresh .auth-image{min-height:0;align-self:stretch}.auth-refresh.register-page .auth-form{padding-block:24px}.auth-refresh.register-page .auth-form input:not([type=checkbox]):not([type=radio]){height:40px}.auth-refresh.register-page .auth-method-tabs{margin-bottom:16px}.auth-refresh.register-page .auth-panel>p{margin-bottom:16px}}
+@media(max-width:860px){.auth-refresh{min-height:calc(100svh - 120px)}.auth-refresh .auth-form{padding:40px 24px;max-width:none}.auth-refresh .auth-panel{max-width:520px}}
+@media(max-width:480px){.auth-refresh .auth-form{padding:30px 20px}.auth-refresh .auth-form .auth-register-form{grid-template-columns:minmax(0,1fr)}.auth-code-heading{flex-wrap:wrap}.auth-refresh .auth-phone-row select{width:105px}}
+
+.auth-refresh .auth-form .auth-password-label{margin:0;font-weight:500}

@@ -31,3 +31,105 @@
 @media(max-width:860px){.home-header{margin-bottom:-80px}.header nav.open{color:var(--ink)}.home-header~main>.hero .hero-content{padding-top:150px}.event-photo{width:110px;height:85px}}
 @media(max-width:600px){.home-header{margin-bottom:-75px}.home-header~main>.hero .hero-content{padding-top:135px;transform:none}.module-photo{height:110px;margin-bottom:18px}.event-row{display:grid;grid-template-columns:60px minmax(0,1fr);gap:16px}.event-photo{grid-column:1/-1;width:100%;height:165px}.event-row>div{min-width:0}.event-detail-link{grid-column:2;margin-left:0}.program-visual{height:185px}.campus-card-photo{height:155px}}
 @media(prefers-reduced-motion:reduce){.module-photo,.program-visual>img{transition:none}}
+
+/* Requested audience photo fitting and event detail image placement. */
+.about-audience .panel-photo{height:auto;aspect-ratio:3/2;object-fit:contain;object-position:center;border-radius:5px}
+.event-hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:60px;align-items:center}
+.event-hero-grid h1{font-size:clamp(36px,4.4vw,64px)}
+.event-hero-grid p:last-child{max-width:670px;font-size:18px}
+.event-hero-photo{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;border-radius:10px}
+@media(max-width:860px){.event-hero-grid{grid-template-columns:1fr;gap:30px}.event-hero-photo{max-width:640px}}
+
+.nav-summary{display:flex;align-items:center;gap:7px;cursor:pointer;background:none;border:0;padding:0;font:inherit;color:inherit}
+.dropdown[hidden]{display:none}
+@media(max-width:860px){.nav-summary{width:100%;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);font-size:16px}}
+
+/* Registration-only image framing and centred left-hand message. */
+@media(min-width:861px){
+ .register-page{align-items:stretch}
+ .register-page .auth-image{position:relative;top:auto;height:auto;min-height:600px;align-self:stretch;overflow:hidden}
+ .register-page .auth-image>img{object-fit:cover;object-position:right center}
+ .register-page .auth-image:after{background:linear-gradient(90deg,#0009,#0003)}
+ .register-page .auth-image>div{top:50%;bottom:auto;left:8%;right:6%;transform:translateY(-50%)}
+ .register-page .auth-image h2{font-size:clamp(44px,4.2vw,66px);line-height:1.12;margin:0}
+ .register-page .auth-image .eyebrow{font-size:18px;margin-bottom:25px}
+}
+
+
+/* Keep desktop registration content in one screen and lift the image message. */
+@media(min-width:861px){
+ .register-page{min-height:calc(100svh / .9 - 132px)}
+ .register-page .auth-image{min-height:0}
+ .register-page .auth-image>div{top:auto;bottom:40px;transform:none}
+ .register-page .auth-form{padding:20px 10%;align-self:stretch;display:flex;flex-direction:column;justify-content:flex-start}
+ .register-page .auth-form>.eyebrow{font-size:14px;margin-bottom:10px}
+ .register-page .auth-form h1{font-size:36px;margin-bottom:8px}
+ .register-page .auth-form>p{margin-bottom:10px}
+ .register-page .auth-form form{margin-top:12px;flex:1;display:flex;flex-direction:column;justify-content:space-between}
+ .register-page .auth-form label{margin-bottom:10px}
+ .register-page .auth-form input:not([type=checkbox]){height:38px;padding:7px 12px;margin-top:4px}
+ .register-page .auth-form .checkbox{font-size:12px;line-height:1.4}
+ .register-page .auth-form .button{min-height:42px;padding:10px 16px}
+ .register-page .auth-form>p:last-child{margin:12px 0 0}
+}
+
+/* Remove excessive opening gaps across the eight feature catalogues. */
+.feature-catalogue>.page-hero+.section{padding-top:20px}
+
+/* Match all feature introduction banners to the About WOC reference. */
+:is(.feature-catalogue,.feature-reference)>.page-hero{min-height:calc(390px - 6mm);padding:calc(60px - 2mm) 0 calc(70px - 4mm);text-align:left}
+:is(.feature-catalogue,.feature-reference)>.page-hero .breadcrumb{font-size:13px;margin-bottom:25px}
+:is(.feature-catalogue,.feature-reference)>.page-hero .eyebrow{font-size:18px;margin-bottom:20px}
+:is(.feature-catalogue,.feature-reference)>.page-hero h1{font-size:clamp(40px,4.9vw,72px);line-height:1.13;max-width:min(100%,1100px);overflow-wrap:break-word;margin-bottom:23px}
+:is(.feature-catalogue,.feature-reference)>.page-hero>.container>p:last-child{font-size:18px;line-height:1.65;min-height:3.3em;max-width:670px}
+@media(max-width:600px){
+ :is(.feature-catalogue,.feature-reference)>.page-hero{min-height:calc(350px - 6mm);padding:calc(35px - 2mm) 0 calc(45px - 4mm)}
+ :is(.feature-catalogue,.feature-reference)>.page-hero h1{font-size:42px;min-height:2.26em}
+ :is(.feature-catalogue,.feature-reference)>.page-hero .eyebrow{font-size:16px}
+ :is(.feature-catalogue,.feature-reference)>.page-hero>.container>p:last-child{font-size:16px}
+}
+
+/* Phone OTP & verification badges */
+.phone-input-row{display:flex;gap:10px;align-items:center}
+.phone-input-row select{width:90px;height:42px;border:1px solid var(--line);border-radius:5px;background:#fff;padding:6px 8px;font:inherit}
+.phone-input-row input{flex:1}
+.badge-verified{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;background:#EAF6ED;color:#18793B;font-size:12px;font-weight:600}
+.badge-unverified{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;background:#FFF4E5;color:#B25E00;font-size:12px;font-weight:600}
+.otp-card{background:#FBFBFA;border:1px solid var(--line);border-radius:8px;padding:20px;margin-top:16px}
+.otp-timer{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;margin:10px 0}
+
+/* Google OAuth Button & Auth Divider */
+.google-btn{display:flex;align-items:center;justify-content:center;width:100%;height:44px;background:#ffffff;border:1px solid #d3cfc7;border-radius:6px;color:#2B2A27;font-family:Outfit,Arial,sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s ease,border-color .2s ease,box-shadow .2s ease;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,0.04);margin-bottom:14px}
+.google-btn:hover{background:#F8F7F4;border-color:#b5b0a6;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
+.google-btn:disabled{opacity:.6;cursor:not-allowed}
+.auth-divider{display:flex;align-items:center;text-align:center;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin:14px 0}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;border-bottom:1px solid var(--line)}
+.auth-divider:not(:empty)::before{margin-right:12px}
+.auth-divider:not(:empty)::after{margin-left:12px}
+
+/* In-App Notifications and Notification Bell */
+.bell-container{position:relative;display:inline-flex;align-items:center}
+.bell-btn{position:relative;background:none;border:none;cursor:pointer;color:inherit;padding:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.bell-btn:hover{background:rgba(0,0,0,0.06)}
+.bell-badge{position:absolute;top:2px;right:2px;background:#AB0C2F;color:#fff;font-size:10px;font-weight:700;line-height:1;padding:2px 5px;border-radius:10px;min-width:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.notification-popover{position:absolute;top:calc(100% + 8px);right:0;width:340px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;color:var(--ink);overflow:hidden}
+.popover-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:#FAF9F6}
+.popover-header strong{font-size:14px;color:var(--ink)}
+.popover-body{max-height:300px;overflow-y:auto}
+.popover-item{padding:12px 16px;border-bottom:1px solid #f0eee9;font-size:13px;display:flex;flex-direction:column;gap:4px;transition:background .15s}
+.popover-item:hover{background:#F9F8F5}
+.popover-item.unread{background:#FFF9FA;border-left:3px solid #AB0C2F}
+.popover-item .time{font-size:11px;color:var(--muted)}
+.popover-footer{padding:10px 16px;text-align:center;background:#FAF9F6;border-top:1px solid var(--line)}
+.notification-card{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:16px 20px;border-radius:6px;background:#fff;border:1px solid var(--line);margin-bottom:12px;transition:box-shadow .2s}
+.notification-card.unread{border-left:4px solid #AB0C2F;background:#FFF9FA}
+.notification-dot{display:inline-block;width:8px;height:8px;background:#AB0C2F;border-radius:50%;margin-right:8px}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;background:#AB0C2F;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:8px;line-height:1}
+
+/* Connection status banner */
+.connection-error-banner{background:#FFF4E5;color:#8F4700;border-bottom:1px solid #FFE0B2;padding:10px 20px;font-size:13px;display:flex;align-items:center;justify-content:center;position:relative;z-index:999;font-weight:500}
+
+
+
+/* Position desktop navigation beside the search controls. */
+@media(min-width:861px){.header nav{margin-left:auto}}

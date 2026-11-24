@@ -1,24 +1,137 @@
 'use client';
-import {createContext,useContext,useState,useEffect,ReactNode} from 'react';
+import {createContext,useContext,useState,useEffect,useRef,ReactNode} from 'react';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-import {Menu,X,Search,Instagram,Linkedin,Mail,ChevronDown,Wind,ArrowUp,CheckCircle} from 'lucide-react';
-import {api,localBackend} from '@/lib/api';
+import {QueryClient,QueryClientProvider,useQuery,useQueryClient} from '@tanstack/react-query';
+import {Menu,X,Search,Instagram,Linkedin,Mail,ChevronDown,Wind,ArrowUp,CheckCircle,Bell} from 'lucide-react';
+import {api,isDemoMode,getApiBase} from '@/lib/api';
 import {modules} from '@/lib/data';
-export type User={id:number;name:string;email:string;institution:string;age:number;bio:string;roles:string[];is_staff:boolean};
+export type User={id:number;name:string;email:string;institution:string;age:number;bio:string;roles:string[];is_staff:boolean;email_verified?:boolean;email_verified_at?:string|null;phone_number?:string;phone_verified?:boolean;phone_verified_at?:string|null;auth_provider?:string;notification_preferences?:Record<string,boolean>};
 export type Registration={id:string;program:import('@/lib/data').Program;status:string;data:Record<string,unknown>;created_at:string;certificate?:string;student?:string;email?:string};
 type Context={user:User|null;setUser:(u:User|null)=>void;demo:boolean;toast:(s:string)=>void;records:Registration[];refresh:()=>Promise<void>;registerProgram:(slug:string,data:Record<string,unknown>)=>Promise<void>};
 const Ctx=createContext<Context>(null!);export const useWoc=()=>useContext(Ctx);
+function NotificationBell(){
+ const {user,demo,toast}=useWoc();
+ const [open,setOpen]=useState(false);
+ const popoverRef=useRef<HTMLDivElement>(null);
+ const qc=useQueryClient();
+ const {data}=useQuery({
+  queryKey:['notifications',user?.id],
+  queryFn:()=>api('/notifications/'),
+  enabled:!!user&&!demo,
+  refetchInterval:20000
+ });
+ const unreadCount=demo?1:(data?.unread_count||0);
+ const list=demo?[{id:1,message:'Welcome to THE WOC student community!',read:false,created_at:new Date().toISOString()}]:(data?.results||[]).slice(0,5);
+
+ useEffect(()=>{
+  const outside=(e:PointerEvent)=>{if(!popoverRef.current?.contains(e.target as Node))setOpen(false)};
+  document.addEventListener('pointerdown',outside);
+  return()=>document.removeEventListener('pointerdown',outside);
+ },[]);
+
+ async function markAll(){
+  if(demo){toast('Notifications marked as read in demo mode.');setOpen(false);return}
+  try{
+   await api('/notifications/','PATCH',{all:true});
+   qc.invalidateQueries({queryKey:['notifications']});
+  }catch{}
+ }
+
+ async function markItem(id:number){
+  if(demo){setOpen(false);return}
+  try{
+   await api('/notifications/','PATCH',{id});
+   qc.invalidateQueries({queryKey:['notifications']});
+  }catch{}
+ }
+
+ return <div className="bell-container" ref={popoverRef}>
+  <button type="button" className="bell-btn" aria-label={`Notifications ${unreadCount>0?`(${unreadCount} unread)`:''}`} onClick={()=>setOpen(!open)}>
+   <Bell size={20}/>
+   {unreadCount>0&&<span className="bell-badge">{unreadCount>9?'9+':unreadCount}</span>}
+  </button>
+  {open&&(
+   <div className="notification-popover" role="region" aria-label="Notifications list">
+    <div className="popover-header">
+     <strong>Notifications</strong>
+     {unreadCount>0&&<button type="button" onClick={markAll} className="text-link" style={{fontSize:'12px',background:'none',border:'none',cursor:'pointer'}}>Mark all read</button>}
+    </div>
+    <div className="popover-body">
+     {list.length>0?(
+      list.map((n:{id:number;message:string;read:boolean;created_at?:string})=>(
+       <div key={n.id} className={`popover-item ${!n.read?'unread':''}`} onClick={()=>markItem(n.id)} style={{cursor:'pointer'}}>
+        <span style={{fontWeight:!n.read?600:400}}>{n.message}</span>
+        {n.created_at&&<span className="time">{new Date(n.created_at).toLocaleDateString('en-IN',{month:'short',day:'numeric'})}</span>}
+       </div>
+      ))
+     ):(
+      <p style={{padding:'20px 16px',textAlign:'center',color:'var(--muted)',fontSize:'13px',margin:0}}>No notifications yet</p>
+     )}
+    </div>
+    <div className="popover-footer">
+     <Link href="/dashboard/" onClick={()=>setOpen(false)} className="text-link" style={{fontSize:'12px',fontWeight:600}}>
+      Go to Dashboard →
+     </Link>
+    </div>
+   </div>
+  )}
+ </div>;
+}
+
 function Shell({children}:{children:ReactNode}){
- const [user,setUserState]=useState<User|null>(null),[demo,setDemo]=useState(false),[records,setRecords]=useState<Registration[]>([]),[message,setMessage]=useState(''),[mobile,setMobile]=useState(false),[search,setSearch]=useState(false),[term,setTerm]=useState(''),[sticky,setSticky]=useState(false);const path=usePathname();
+ const [user,setUserState]=useState<User|null>(null),[demo,setDemo]=useState(false),[records,setRecords]=useState<Registration[]>([]),[message,setMessage]=useState(''),[apiError,setApiError]=useState(''),[mobile,setMobile]=useState(false),[search,setSearch]=useState(false),[term,setTerm]=useState(''),[sticky,setSticky]=useState(false),[openMenu,setOpenMenu]=useState<string|null>(null);const path=usePathname();const navRef=useRef<HTMLElement>(null);
  const toast=(s:string)=>setMessage(s);
  const setUser=(u:User|null)=>{setUserState(u);if(demo){if(u)sessionStorage.setItem('woc-demo-user',JSON.stringify(u));else sessionStorage.removeItem('woc-demo-user')}};
- const refresh=async()=>{if(localBackend()){try{const d=await api('/records/');setRecords(d.results)}catch{setRecords([])}}else setRecords(JSON.parse(localStorage.getItem('woc-demo-records')||'[]'))};
- useEffect(()=>{const isDemo=!localBackend();setDemo(isDemo);if(isDemo){const saved=sessionStorage.getItem('woc-demo-user');if(saved)setUserState(JSON.parse(saved));setRecords(JSON.parse(localStorage.getItem('woc-demo-records')||'[]'))}else api('/me/').then(d=>{setUserState(d.user);refresh()}).catch(()=>{});const scroll=()=>setSticky(window.scrollY>30);scroll();window.addEventListener('scroll',scroll,{passive:true});return()=>window.removeEventListener('scroll',scroll)},[]);
- useEffect(()=>{setMobile(false);setSearch(false)},[path]);useEffect(()=>{if(!message)return;const t=setTimeout(()=>setMessage(''),6500);return()=>clearTimeout(t)},[message]);
+ const refresh=async()=>{
+  if(demo){
+   setRecords(JSON.parse(localStorage.getItem('woc-demo-records')||'[]'));
+  }else{
+   try{
+    const d=await api('/records/');
+    setRecords(d.results||[]);
+    setApiError('');
+   }catch(err:any){
+    if(err.message&&err.message.includes('Cannot connect')){
+     setApiError(err.message);
+    }
+   }
+  }
+ };
+ useEffect(()=>{
+  const isDemo=isDemoMode();
+  setDemo(isDemo);
+  if(isDemo){
+   const saved=sessionStorage.getItem('woc-demo-user');
+   if(saved)setUserState(JSON.parse(saved));
+   setRecords(JSON.parse(localStorage.getItem('woc-demo-records')||'[]'));
+  }else{
+   api('/me/')
+    .then(d=>{
+     setUserState(d.user);
+     refresh();
+     setApiError('');
+    })
+    .catch((err:any)=>{
+     if(err.message&&err.message.includes('Cannot connect')){
+      setApiError(err.message);
+     }
+    });
+  }
+  const scroll=()=>setSticky(window.scrollY>30);
+  scroll();
+  window.addEventListener('scroll',scroll,{passive:true});
+  return()=>window.removeEventListener('scroll',scroll);
+ },[]);
+ useEffect(()=>{setMobile(false);setSearch(false);setOpenMenu(null)},[path]);useEffect(()=>{if(!message)return;const t=setTimeout(()=>setMessage(''),6500);return()=>clearTimeout(t)},[message]);
+ useEffect(()=>{
+  const outside=(event:PointerEvent)=>{if(!navRef.current?.contains(event.target as Node))setOpenMenu(null)};
+  const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){setOpenMenu(null);setMobile(false)}};
+  document.addEventListener('pointerdown',outside);document.addEventListener('keydown',escape);
+  return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape)};
+ },[]);
  async function registerProgram(slug:string,data:Record<string,unknown>){if(!user)throw new Error('Please sign in before registering.');if(demo){const p=(await import('@/lib/data')).programs.find(p=>p.slug===slug)!;if(records.some(r=>r.program.slug===slug))throw new Error('You already registered for this sample program.');const r={id:crypto.randomUUID(),program:p,status:'sample registration',data,created_at:new Date().toISOString()};const next=[r,...records];setRecords(next);localStorage.setItem('woc-demo-records',JSON.stringify(next));toast('Sample registration saved in this browser.')}else{await api('/records/','POST',{program:slug,data});await refresh();toast('Registration saved. View its status in your dashboard.')}}
- return <Ctx.Provider value={{user,setUser,demo,toast,records,refresh,registerProgram}}><a className="skip-link" href="#main">Skip to content</a>{demo&&<div className="demo-banner">Interactive showcase · Sample programs · Browser-only demo account · No payments collected</div>}<div className="topbar"><div className="container"><span>BE THE CHANGE. &nbsp; BUILD YOUR FUTURE.</span><div><Link href="/contact/">Help & enquiries</Link><Link href={user?'/dashboard/':'/login/'}>{user?'My dashboard':'Login / Register'}</Link></div></div></div><header className={`header ${sticky?'scrolled':''} ${path==='/'?'home-header':''}`}><div className="container header-inner"><Link href="/" className="brand" aria-label="WOC home"><Wind size={33} strokeWidth={1.4}/><span>THE WOC<small>WIND OF CHANGE</small></span></Link><nav aria-label="Main navigation" className={mobile?'open':''}><Link href="/" aria-current={path==='/'?'page':undefined}>Home</Link>{[{name:'Discover',items:['about','association','partnerships']},{name:'Opportunities',items:['academy','careers','incubation']},{name:'Campus Life',items:['events','sports','culturals']}].map(group=><details key={group.name} className="nav-group"><summary>{group.name}<ChevronDown size={13}/></summary><div className="dropdown">{group.items.map(slug=><Link key={slug} href={`/${slug}/`}>{modules.find(m=>m.slug===slug)?.name||'About WOC'}<small>{modules.find(m=>m.slug===slug)?.line||'Our mission and approach'}</small></Link>)}</div></details>)}<Link href="/contact/">Contact</Link></nav><div className="header-actions"><button className="icon-button search-toggle" aria-label="Search WOC" onClick={()=>setSearch(!search)}><Search size={20}/></button><Link href={user?'/dashboard/':'/register/'} className="button small">{user?'Dashboard':'Join WOC'}</Link><button className="icon-button mobile-toggle" aria-label={mobile?'Close navigation':'Open navigation'} aria-expanded={mobile} onClick={()=>setMobile(!mobile)}>{mobile?<X/>:<Menu/>}</button></div></div>{search&&<form className="searchbar container" onSubmit={e=>{e.preventDefault();window.location.href='/academy/?q='+encodeURIComponent(term)}}><label htmlFor="site-search">Find a course</label><input id="site-search" autoFocus value={term} onChange={e=>setTerm(e.target.value)} placeholder="Try Python, design, communication…"/><button className="button small">Search</button></form>}</header>{children}<footer className="footer"><div className="container footer-grid"><div><Link href="/" className="brand"><Wind size={30}/><span>THE WOC<small>WIND OF CHANGE</small></span></Link><p>Connecting student ambition with learning, community and real-world possibilities.</p><Link className="footer-contact" href="/contact/"><Mail size={17}/>Get in touch</Link></div><div><h3>Discover WOC</h3>{['about','association','partnerships','news'].map(x=><Link key={x} href={`/${x}/`}>{x==='partnerships'?'Partnerships':x==='news'?'News & stories':x[0].toUpperCase()+x.slice(1)}</Link>)}</div><div><h3>Explore</h3>{['academy','careers','incubation','events','sports','culturals'].map(x=><Link key={x} href={`/${x}/`}>{x[0].toUpperCase()+x.slice(1)}</Link>)}</div><div><h3>Stay connected</h3><p>Hear about programs and campus opportunities.</p><Newsletter/><div className="social-links"><Link href="/contact/" aria-label="Ask about WOC social channels"><Instagram size={18}/></Link><Link href="/contact/" aria-label="Contact WOC for professional partnerships"><Linkedin size={18}/></Link></div></div></div><div className="container footer-bottom"><span>© {new Date().getFullYear()} THE WOC — Wind of Change.</span><div><Link href="/privacy/">Privacy</Link><Link href="/terms/">Terms</Link><Link href="/certificate/">Verify certificate</Link></div></div></footer>{message&&<div className="toast" role="status"><CheckCircle size={20}/><span>{message}</span><button onClick={()=>setMessage('')} className="icon-button" aria-label="Dismiss notification"><X size={18}/></button></div>}{sticky&&<button className="back-top" onClick={()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})} aria-label="Back to top"><ArrowUp size={19}/></button>}</Ctx.Provider>
+ return <Ctx.Provider value={{user,setUser,demo,toast,records,refresh,registerProgram}}><a className="skip-link" href="#main">Skip to content</a>{demo&&<div className="demo-banner">Interactive showcase · Sample programs · Browser-only demo account · No payments collected</div>}{apiError&&<div className="connection-error-banner" role="alert"><span>⚠️ {apiError}</span><button type="button" onClick={()=>{setApiError('');refresh()}} className="button small outline" style={{marginLeft:'12px',padding:'4px 10px',fontSize:'12px'}}>Retry</button></div>}<div className="topbar"><div className="container"><span>BE THE CHANGE. &nbsp; BUILD YOUR FUTURE.</span><div><Link href="/contact/">Help & enquiries</Link><Link href={user?'/dashboard/':'/login/'}>{user?'My dashboard':'Login / Register'}</Link></div></div></div><header className={`header ${sticky?'scrolled':''} ${path==='/'?'home-header':''}`}><div className="container header-inner"><Link href="/" className="brand" aria-label="WOC home"><Wind size={33} strokeWidth={1.4}/><span>WOC<small>WIND OF CHANGE</small></span></Link><nav ref={navRef} aria-label="Main navigation" onClick={e=>{if((e.target as HTMLElement).closest('a'))setOpenMenu(null)}} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpenMenu(null)}} className={mobile?'open':''}><Link href="/" onMouseEnter={()=>setOpenMenu(null)} onFocus={()=>setOpenMenu(null)} aria-current={path==='/'?'page':undefined}>Home</Link>{[{name:'Discover',items:['about','association','partnerships']},{name:'Opportunities',items:['academy','careers','incubation']},{name:'Campus Life',items:['events','sports','culturals']}].map(group=><div key={group.name} className="nav-group" onMouseEnter={()=>{if(window.matchMedia('(hover: hover)').matches)setOpenMenu(current=>current===group.name?current:null)}}><button type="button" className="nav-summary" aria-expanded={openMenu===group.name} onClick={e=>{e.preventDefault();setOpenMenu(openMenu===group.name?null:group.name)}}>{group.name}<ChevronDown size={13}/></button><div className="dropdown" hidden={openMenu!==group.name}>{group.items.map(slug=><Link key={slug} href={`/${slug}/`}>{modules.find(m=>m.slug===slug)?.name||'About WOC'}<small>{modules.find(m=>m.slug===slug)?.line||'Our mission and approach'}</small></Link>)}</div></div>)}<Link href="/contact/" onMouseEnter={()=>setOpenMenu(null)} onFocus={()=>setOpenMenu(null)}>Contact</Link></nav><div className="header-actions"><button className="icon-button search-toggle" aria-label="Search WOC" onClick={()=>setSearch(!search)}><Search size={20}/></button>{user&&<NotificationBell/>}<Link href={user?'/dashboard/':'/register/'} className="button small">{user?'Dashboard':'Join WOC'}</Link><button className="icon-button mobile-toggle" aria-label={mobile?'Close navigation':'Open navigation'} aria-expanded={mobile} onClick={()=>setMobile(!mobile)}>{mobile?<X/>:<Menu/>}</button></div></div>{search&&<form className="searchbar container" onSubmit={e=>{e.preventDefault();window.location.href='/academy/?q='+encodeURIComponent(term)}}><label htmlFor="site-search">Find a course</label><input id="site-search" autoFocus value={term} onChange={e=>setTerm(e.target.value)} placeholder="Try Python, design, communication…"/><button className="button small">Search</button></form>}</header>{children}<footer className="footer"><div className="container footer-grid"><div><Link href="/" className="brand"><Wind size={30}/><span>WOC<small>WIND OF CHANGE</small></span></Link><p>Connecting student ambition with learning, community and real-world possibilities.</p><Link className="footer-contact" href="/contact/"><Mail size={17}/>Get in touch</Link></div><div><h3>Discover WOC</h3>{['about','association','partnerships','news'].map(x=><Link key={x} href={`/${x}/`}>{x==='partnerships'?'Partnerships':x==='news'?'News & stories':x[0].toUpperCase()+x.slice(1)}</Link>)}</div><div><h3>Explore</h3>{['academy','careers','incubation','events','sports','culturals'].map(x=><Link key={x} href={`/${x}/`}>{x[0].toUpperCase()+x.slice(1)}</Link>)}</div><div><h3>Stay connected</h3><p>Hear about programs and campus opportunities.</p><Newsletter/><div className="social-links"><Link href="/contact/" aria-label="Ask about WOC social channels"><Instagram size={18}/></Link><Link href="/contact/" aria-label="Contact WOC for professional partnerships"><Linkedin size={18}/></Link></div></div></div><div className="container footer-bottom"><span>© {new Date().getFullYear()} THE WOC — Wind of Change.</span><div><Link href="/privacy/">Privacy</Link><Link href="/terms/">Terms</Link><Link href="/certificate/">Verify certificate</Link></div></div></footer>{message&&<div className="toast" role="status"><CheckCircle size={20}/><span>{message}</span><button onClick={()=>setMessage('')} className="icon-button" aria-label="Dismiss notification"><X size={18}/></button></div>}{sticky&&<button className="back-top" onClick={()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})} aria-label="Back to top"><ArrowUp size={19}/></button>}</Ctx.Provider>
 }
 function Newsletter(){const {demo,toast}=useWoc();const [email,setEmail]=useState('');return <form onSubmit={async e=>{e.preventDefault();try{if(demo){localStorage.setItem('woc-newsletter',email);toast('Sample newsletter preference saved in this browser.')}else{await api('/enquiries/','POST',{name:'Newsletter subscriber',email,kind:'newsletter',message:'Please send me WOC program updates.'});toast('Newsletter request saved.')}setEmail('')}catch(e){toast((e as Error).message)}}}><label className="sr-only" htmlFor="newsletter">Your email</label><input id="newsletter" type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your email address"/><button className="button small" type="submit">Subscribe</button></form>}
 export default function Platform({children}:{children:ReactNode}){const [client]=useState(()=>new QueryClient());return <QueryClientProvider client={client}><Shell>{children}</Shell></QueryClientProvider>}
