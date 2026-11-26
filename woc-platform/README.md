@@ -1,48 +1,30 @@
-# THE WOC — Wind of Change
+# WOC — Local signup and login
 
-Acadia-inspired student ecosystem with original generated campus photography, the reviewed crimson `#AB0C2F` / cream `#F6F4EE` palette, Outfit typography and reduced-motion-aware transitions.
+The Django backend is connected again using the preserved SQLite database. Existing accounts, administrator MFA devices, program records and frontend styling are preserved. No database reset or new schema migration is needed.
 
-## Run locally
+## Run
 
-Open PowerShell in this directory and run `./start-woc.ps1`. The launcher opens hidden, project-owned server processes and writes their PIDs and logs under `.run/`. Visit **http://127.0.0.1:4317**. Backend: **http://127.0.0.1:8317/api/health/**. Run `./stop-woc.ps1` to stop only these project processes.
+Use `START.bat` in the repository root. It starts or reuses both localhost services:
 
-Requirements: Node 20.9+ and Python 3.12+. Dependencies are already installed in this workspace. On another machine, run `npm ci` in `frontend`, create `backend/.venv`, then install `backend/requirements.lock.txt`, migrate and run `seed_catalogue`.
+- Website: http://127.0.0.1:4317/
+- Backend health: http://127.0.0.1:8317/api/health/
 
-Frontend commands: `npm run dev`, `npm run typecheck`, `npm run build`. The launcher uses the static production build to avoid development-only origin restrictions. Build output is `frontend/out`.
+To run manually, start `.venv/Scripts/python.exe manage.py runserver 127.0.0.1:8317` from `backend`, and `npm run dev` from `frontend` in another terminal. `stop-woc.ps1` stops recorded WOC servers. Rebuild from `frontend` with `npm run build` after changing frontend code when using the static launcher.
 
-Backend commands, from `backend`:
+## Email accounts
 
-```powershell
-.\.venv\Scripts\python.exe manage.py migrate
-.\.venv\Scripts\python.exe manage.py seed_catalogue
-.\.venv\Scripts\python.exe manage.py test core
-.\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8317
-```
+Create an account with name, age, institution, email, a strong password and required consent. The account is saved on the server and can be used repeatedly with the same email/password. Passwords are hashed by Django. Local configuration sets `EMAIL_VERIFICATION_REQUIRED=false`, so no verification email is needed to sign in. This does not claim that the email address is verified: the email verification flag remains false until actual verification.
 
-## Accounts and administration
+## Mobile OTP accounts — local development only
 
-Local account registration requires email verification. Development email is printed to the backend console, and the local registration screen provides a development-only verification link. No default passwords or staff users are shipped. Create your own staff account with `manage.py createsuperuser`, then run `manage.py configure_admin_mfa <username>` locally and add the private URI to your authenticator. Staff login requires a TOTP code. Django administration is at port 8317 `/admin/`.
+Choose Mobile OTP on signup, enter student details and a phone number, then request a code. A random six-digit development code appears on the same screen; no SMS or Firebase request is made. Enter it to create the account and start a real Django session. On a later Mobile OTP login, request a fresh code for the same number to access the existing account. Unknown numbers on the login screen do not create accounts.
 
-The public-facing private hosted showcase uses explicitly labelled browser-only demo state. Its accounts, enquiries and registrations are not connected to the local Django database. Never enter a real password into demo mode. The full local app uses HTTP-only Django session cookies and CSRF protection on anonymous and authenticated writes.
+Codes expire after five minutes, permit at most three incorrect attempts, are single-use, have a 60-second resend cooldown and are bound to the requesting browser session. Resending invalidates the previous browser challenge. Only OTP hashes are stored in the database.
 
-## Included
+`WOC_LOCAL_SCREEN_OTP=true` is explicitly set in the private local backend `.env`. On-screen OTP is rejected when DEBUG is false, the request host or address is not loopback, or forwarded proxy headers are present. It must not be used for a public deployment; live SMS is a separate provider-backed setup. Leave it disabled (`false`) outside direct local development. Staff and superuser accounts cannot use mobile OTP to bypass their authenticator.
 
-- Homepage with all requested subject areas, a three-slide image hero, manual controls, optional pausable autoplay, scroll entrances, hover effects, sticky header, accessible native dropdowns and mobile navigation.
-- Eight module landing pages; 25 sample program detail pages; catalogue search/category filtering; editorial guides; contact, privacy, terms and certificate verification pages.
-- Student dashboard sections for all eight modules, profile editing, notifications and certificate records.
-- Django persisted registrations with uniqueness/capacity checks, under-18 permission declaration, team-size validation, solo/group selection and startup idea submission.
-- Free sample learning workflow with lesson progress, assessment, project text, staff approval and verifiable completion records.
-- Staff review interface, audit entries and Django content administration. Staff MFA support is installed and enforced at login.
-- PostgreSQL environment configuration; SQLite fallback for immediate local use. Redis/Celery, S3 libraries are installed but no external services are provisioned.
+## Preserved functionality
 
-## Remaining production work
+Django session cookies, CSRF protection, profile fields, notifications, program registrations, learning data and staff administration remain in place. All 25 frontend program entries and existing theme CSS are unchanged. The private original backend/database snapshot remains under the Git-ignored `.local-backups/backend-removed-2026-11-26/` folder at the repository root. It is never committed.
 
-This is a working pilot foundation, not the entire production system described in the master prompt. The following are intentionally not represented as completed: payment provider/webhooks/refunds; production SMTP; external PostgreSQL/Redis/S3 provisioning; verified guardian consent; employer KYC; real course videos and trainer content; object-scoped recruiter/trainer/college/mentor dashboards; fixture generation and scoring UI; judge workflows; QR ticket generation/check-in; upload scanning; signed agreements; dedicated per-domain Django apps; live CMS publishing into the statically exported catalogue; and automated deletion/retention requests. The current backend uses a shared `core` domain schema rather than claiming fifteen separately implemented apps.
-
-Before real enrolment, configure these services, replace sample content, approve terms/privacy/safeguarding policies, define operating rules, complete penetration/accessibility testing and deploy Django using a production WSGI/ASGI server behind HTTPS. Django `runserver` is for local review only. Configure `DEBUG=false` and a unique secret key. No payments or jobs are guaranteed, and the sample catalogue does not represent signed partners or achieved outcomes.
-
-## Image provenance
-
-Three original photographs were generated using the built-in ImageGen tool: campus courtyard, innovation lab, and cultural festival. The festival image was edited only to correct the glasses-wearing woman’s raised hand. Originals remain preserved separately; optimized WebP copies are used by the site. The existing ZIP was inspected for design tokens and motion settings, not copied as the application source.
-
-See `ASSET-PROMPTS.md` for the generation briefs and `backend/API.md` for endpoints.
+The earlier Firebase code remains isolated from the local screen-OTP route. Firebase credentials are not required for this flow. No live SMS, email delivery or Google-provider verification is claimed by this local implementation. No payments or deployment were performed.

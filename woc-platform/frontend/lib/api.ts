@@ -51,10 +51,10 @@ export async function api(path: string, method = 'GET', data?: unknown) {
       method,
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(data instanceof FormData ? {} : {'Content-Type': 'application/json'}),
         ...(csrf ? { 'X-CSRFToken': csrf } : {}),
       },
-      ...(data ? { body: JSON.stringify(data) } : {}),
+      ...(data ? { body: data instanceof FormData ? data : JSON.stringify(data) } : {}),
     });
 
     const json = await r.json().catch(() => ({}));
@@ -72,3 +72,14 @@ export async function api(path: string, method = 'GET', data?: unknown) {
     throw err;
   }
 }
+
+export async function redirectAfterAuthentication() {
+  const response = await api("/me/");
+  const destination = response.user?.authorization?.dashboard_url;
+  const allowed = ["/dashboard/", "/college/", "/company/", "/super-admin/", "/onboarding/"];
+  const intent = sessionStorage.getItem("woc-registration-role");
+  window.location.href = destination === "/dashboard/" && ["college","company"].includes(intent || "") ? `/onboarding/?type=${intent}` : allowed.includes(destination) ? destination : "/dashboard/";
+}
+
+export async function uploadFile(path:string,file:File){const data=new FormData();data.set('file',file);return api(path,'POST',data);}
+export async function privateFileUrl(path:string){const response=await fetch(getApiBase()+path,{credentials:'include'});if(!response.ok)throw new Error('Unable to open this private file.');return URL.createObjectURL(await response.blob());}

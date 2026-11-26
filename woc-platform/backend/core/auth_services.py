@@ -153,6 +153,51 @@ If you did not create an account on THE WOC, please ignore this email.
         raise MessageDeliveryError('Your verification email could not be sent. Please try resending it shortly.')
     return verify_url
 
+def send_email_otp(email, otp, user=None):
+    """Sends a branded 6-digit email verification OTP via configured SMTP."""
+    name = (user.first_name if user and user.first_name else None) or "Student"
+    subject = "Your THE WOC Email Verification Code"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F6F4EE; margin: 0; padding: 40px 20px;">
+      <div style="max-width: 560px; margin: 0 auto; background: #FFFFFF; border-radius: 8px; border: 1px solid #E8E5DF; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+        <div style="background-color: #AB0C2F; padding: 28px 32px; color: #FFFFFF;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em;">THE WOC</h1>
+          <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.85; letter-spacing: 0.05em;">WIND OF CHANGE</p>
+        </div>
+        <div style="padding: 32px; color: #2B2A27; line-height: 1.6;">
+          <h2 style="margin-top: 0; font-size: 20px; color: #1D1C1A;">Email Verification Code</h2>
+          <p>Hello {name},</p>
+          <p>Use the following 6-digit verification code to verify your email address on <strong>THE WOC</strong> platform:</p>
+          <div style="margin: 28px 0; padding: 18px 24px; background-color: #F6F4EE; border: 1px dashed #AB0C2F; border-radius: 8px; text-align: center;">
+            <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #AB0C2F;">{otp}</span>
+          </div>
+          <p style="font-size: 13px; color: #6D695F;">This code expires in <strong>5 minutes</strong> and can only be used once. Do not share this code with anyone.</p>
+          <hr style="border: none; border-top: 1px solid #EAE7E1; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #8C887E; margin: 0;">If you did not request this code on THE WOC, you can safely ignore this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    plain_text = f"""Hello {name},
+
+Your THE WOC email verification code is: {otp}
+
+This code expires in 5 minutes and can only be used once. Do not share it with anyone.
+
+If you did not request this code, please ignore this email.
+"""
+
+    if not safe_send_mail(subject, plain_text, email, html_content, 'email_otp'):
+        raise MessageDeliveryError('Your verification OTP email could not be sent. Please try again shortly.')
+    return True
+
+
 def send_welcome_email(user):
     """Sends a welcome confirmation email once email verification is completed."""
     subject = "Welcome to THE WOC!"
@@ -202,11 +247,11 @@ def send_password_reset_email(user, request=None):
     # Invalidate any existing unused tokens for this user
     PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
     
-    # Create new 1-hour token
+    # Create new 15-minute token
     PasswordResetToken.objects.create(
         user=user,
         token_hash=token_hash,
-        expires_at=timezone.now() + timedelta(hours=1)
+        expires_at=timezone.now() + timedelta(minutes=15)
     )
     
     reset_url = f"{settings.FRONTEND_URL}/reset-password/?token={raw_token}"
@@ -230,7 +275,7 @@ def send_password_reset_email(user, request=None):
           <div style="margin: 32px 0;">
             <a href="{reset_url}" style="background-color: #AB0C2F; color: #FFFFFF; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block;">Reset Password</a>
           </div>
-          <p style="font-size: 13px; color: #6D695F;">For your security, this password reset link will expire in <strong>1 hour</strong> and can only be used once.</p>
+          <p style="font-size: 13px; color: #6D695F;">For your security, this password reset link will expire in <strong>15 minutes</strong> and can only be used once.</p>
           <p style="font-size: 13px; color: #6D695F; word-break: break-all;">If the button above does not work, copy and paste this link into your browser:<br><a href="{reset_url}" style="color: #AB0C2F;">{reset_url}</a></p>
           <hr style="border: none; border-top: 1px solid #EAE7E1; margin: 24px 0;" />
           <p style="font-size: 12px; color: #8C887E; margin: 0;">If you did not request a password reset, you can safely ignore this email. Your current password remains unchanged.</p>
@@ -246,7 +291,7 @@ We received a request to reset the password for your THE WOC account.
 
 Reset your password: {reset_url}
 
-This link will expire in 1 hour and can only be used once.
+This link will expire in 15 minutes and can only be used once.
 
 If you did not request a password reset, you can safely ignore this email.
 """
@@ -392,12 +437,88 @@ def generate_secure_otp():
     """Generates a cryptographically secure 6-digit random OTP."""
     return f"{secrets.SystemRandom().randint(100000, 999999)}"
 
+def normalize_indian_mobile(phone_number):
+    """Extracts and validates a 10-digit Indian mobile number for NinzaSMS."""
+    cleaned = re.sub(r'[\s\-\(\)]', '', str(phone_number or '').strip())
+    if cleaned.startswith('+91'):
+        cleaned = cleaned[3:]
+    elif cleaned.startswith('91') and len(cleaned) == 12:
+        cleaned = cleaned[2:]
+    elif cleaned.startswith('0') and len(cleaned) == 11:
+        cleaned = cleaned[1:]
+    if not re.match(r'^[6-9]\d{9}$', cleaned):
+        raise ValueError('Enter a valid 10-digit Indian mobile number.')
+    return cleaned
+
+
 def send_sms_otp(phone_number, otp):
-    """Return a test preview or require confirmed provider acceptance; never fake live delivery."""
-    provider = getattr(settings, 'SMS_PROVIDER', 'msg91').lower()
-    preview = settings.DEBUG and getattr(settings, 'SMS_DEV_MODE', False) and provider == 'test_mode'
-    if preview:
+    """Send 6-digit OTP via configured SMS provider; never fake live delivery."""
+    import urllib.error
+    provider = getattr(settings, 'SMS_PROVIDER', 'ninzasms').lower()
+    test_mode = getattr(settings, 'SMS_TEST_MODE', False) or (
+        settings.DEBUG and getattr(settings, 'SMS_DEV_MODE', False) and provider == 'test_mode'
+    )
+    if test_mode:
         return {'mode': 'test'}
+
+    if provider == 'ninzasms':
+        api_key = getattr(settings, 'NINZASMS_API_KEY', '').strip()
+        api_url = getattr(settings, 'NINZASMS_API_URL', 'https://ninzasms.in.net/auth/send_sms.php').strip()
+        sender_id = getattr(settings, 'NINZASMS_SENDER_ID', '16402')
+        if not api_key or not api_url:
+            raise MessageDeliveryError('Mobile OTP service is not configured. Please contact support.')
+        try:
+            indian_mobile = normalize_indian_mobile(phone_number)
+        except ValueError as exc:
+            raise MessageDeliveryError(str(exc))
+
+        sender_val = int(sender_id) if str(sender_id).strip().isdigit() else str(sender_id).strip()
+        payload = json.dumps({
+            'sender_id': sender_val,
+            'numbers': indian_mobile,
+            'variables_values': str(otp),
+            'rout': 'sms',
+        }).encode('utf-8')
+        req = urllib.request.Request(api_url, data=payload, method='POST')
+        req.add_header('Authorization', f'Bearer {api_key}')
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('Accept', 'application/json')
+
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                raw_body = response.read().decode('utf-8', errors='replace')
+            try:
+                result = json.loads(raw_body) if raw_body.strip() else {}
+            except ValueError:
+                result = {'raw': raw_body}
+
+            status_flag = result.get('return', result.get('status', result.get('success')))
+            msg_text = str(result.get('message', '') or result.get('error', '')).lower()
+            if status_flag is False or str(status_flag).lower() in ['false', 'error', 'failed']:
+                logger.warning('NinzaSMS rejected OTP for %s', mask_phone_number(phone_number))
+                if 'balance' in msg_text or 'credit' in msg_text:
+                    raise MessageDeliveryError('SMS delivery is temporarily unavailable due to gateway balance limits.')
+                if 'auth' in msg_text or 'key' in msg_text or 'token' in msg_text or 'unauthorized' in msg_text:
+                    raise MessageDeliveryError('SMS gateway authentication failed. Please contact support.')
+                raise MessageDeliveryError('SMS could not be sent. Please verify your mobile number and try again.')
+            return {'mode': 'live', 'provider': 'ninzasms'}
+        except MessageDeliveryError:
+            raise
+        except urllib.error.HTTPError as exc:
+            err_body = exc.read().decode('utf-8', errors='replace').lower() if exc.fp else ''
+            logger.warning('NinzaSMS HTTP %s for %s', exc.code, mask_phone_number(phone_number))
+            if exc.code in (401, 403) or 'unauthorized' in err_body or 'invalid' in err_body:
+                raise MessageDeliveryError('SMS gateway credentials are invalid. Please contact support.')
+            if exc.code == 402 or 'balance' in err_body or 'credit' in err_body:
+                raise MessageDeliveryError('SMS delivery is temporarily unavailable due to gateway balance limits.')
+            raise MessageDeliveryError('SMS could not be sent right now. Please try again shortly.')
+        except (urllib.error.URLError, TimeoutError):
+            logger.warning('NinzaSMS timeout/connection error for %s', mask_phone_number(phone_number))
+            raise MessageDeliveryError('SMS gateway timed out. Please try again shortly.')
+        except Exception:
+            logger.warning('NinzaSMS unexpected error for %s', mask_phone_number(phone_number))
+            raise MessageDeliveryError('SMS could not be sent. Please try again shortly.')
+
     if provider == 'msg91':
         key = getattr(settings, 'MSG91_AUTH_KEY', '')
         template = getattr(settings, 'MSG91_TEMPLATE_ID', '')

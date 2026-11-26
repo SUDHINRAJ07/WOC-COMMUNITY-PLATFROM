@@ -23,6 +23,7 @@ build/
 *.tsbuildinfo
 
 # Review and temp outputs
+.local-backups/
 output/
 *.log
 
@@ -31,3 +32,6 @@ output/
 Thumbs.db
 .idea/
 .vscode/
+
+# Private student resumes, photos and organization verification evidence
+woc-platform/backend/private-uploads/

@@ -81,8 +81,14 @@ EMAIL_USE_SSL=os.getenv('EMAIL_USE_SSL','false').lower()=='true'
 EMAIL_TIMEOUT=int(os.getenv('EMAIL_TIMEOUT',10))
 DEFAULT_FROM_EMAIL=os.getenv('DEFAULT_FROM_EMAIL','THE WOC <noreply@woc.org>')
 FRONTEND_URL=os.getenv('FRONTEND_URL','http://localhost:4317')
-SMS_PROVIDER=os.getenv('SMS_PROVIDER','msg91')
+SMS_PROVIDER=os.getenv('SMS_PROVIDER','ninzasms')
+WOC_LOCAL_SCREEN_OTP=os.getenv('WOC_LOCAL_SCREEN_OTP','false').lower()=='true'
+EMAIL_VERIFICATION_REQUIRED=os.getenv('EMAIL_VERIFICATION_REQUIRED','false').lower()=='true'
 SMS_DEV_MODE=os.getenv('SMS_DEV_MODE','false').lower()=='true'
+SMS_TEST_MODE=os.getenv('SMS_TEST_MODE','false').lower()=='true'
+NINZASMS_API_KEY=os.getenv('NINZASMS_API_KEY','')
+NINZASMS_SENDER_ID=os.getenv('NINZASMS_SENDER_ID','16402')
+NINZASMS_API_URL=os.getenv('NINZASMS_API_URL','https://ninzasms.in.net/auth/send_sms.php')
 TWILIO_ACCOUNT_SID=os.getenv('TWILIO_ACCOUNT_SID','')
 TWILIO_AUTH_TOKEN=os.getenv('TWILIO_AUTH_TOKEN','')
 TWILIO_PHONE_NUMBER=os.getenv('TWILIO_PHONE_NUMBER','')
@@ -99,3 +105,11 @@ CELERY_BROKER_URL=os.getenv('REDIS_URL','redis://localhost:6379/0')
 SECURE_CONTENT_TYPE_NOSNIFF=True
 X_FRAME_OPTIONS='DENY'
 LOGGING={'version':1,'disable_existing_loggers':False,'handlers':{'console':{'class':'logging.StreamHandler'}},'root':{'handlers':['console'],'level':'INFO'}}
+
+# Private uploads are served only through authenticated, ownership-checked APIs.
+MEDIA_ROOT=os.getenv("WOC_PRIVATE_UPLOAD_ROOT",str(BASE_DIR / "private-uploads"))
+FILE_UPLOAD_MAX_MEMORY_SIZE=5*1024*1024
+DATA_UPLOAD_MAX_MEMORY_SIZE=6*1024*1024
+
+# Password-only superuser preview access is explicitly opt-in and loopback-only.
+WOC_LOCAL_ADMIN_PASSWORD_LOGIN=os.getenv("WOC_LOCAL_ADMIN_PASSWORD_LOGIN","false").lower()=="true"

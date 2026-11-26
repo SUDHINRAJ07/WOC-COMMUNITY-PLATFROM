@@ -86,15 +86,15 @@ test('OTP, quota, region, billing and domain errors are actionable',()=>{
   const message=client.phoneError({code:'auth/'+code});assert.ok(message.length>20);assert.ok(!message.includes('undefined'));
  }
 });
-test('mobile registration guides Email signup without phone account creation',()=>{
+test('mobile signup and login retain form styling and show local development guidance',()=>{
  const component=compile('components/MobileAuthForm.tsx',{
   '@/lib/use-firebase-phone':{useFirebasePhone:()=>({container:{current:null},reset(){}})},
   '@/lib/firebase-phone':{phoneError:()=>''},'@/lib/api':{api:()=>{throw Error('no API calls during render')}},
   './Platform':{useWoc:()=>({demo:false,setUser(){},toast(){}})},
  }).default;
  const register=renderToStaticMarkup(React.createElement(component,{mode:'register',onEmailSignup(){}}));
- assert.match(register,/Continue with Email/);assert.match(register,/cannot create a WOC account/);
- assert.doesNotMatch(register,/Verify &amp; create account|type="tel"/);
+ assert.match(register,/Full name/);assert.match(register,/Institution/);
+ assert.match(register,/type="tel"/);assert.match(register,/No SMS is sent/);
  const login=renderToStaticMarkup(React.createElement(component,{mode:'login',onEmailSignup(){}}));
  assert.match(login,/auth-mobile-form/);assert.match(login,/Send verification code/);assert.match(login,/type="tel"/);
 });

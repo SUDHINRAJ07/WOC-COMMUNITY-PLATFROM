@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css';
+import './portal-update.css';
 import './visual-update.css';
 import './auth-update.css';
 import Platform from '@/components/Platform';

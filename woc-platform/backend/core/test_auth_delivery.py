@@ -9,6 +9,7 @@ from .models import Profile, PhoneOTPChallenge
 from .auth_services import send_sms_otp, safe_send_mail, MessageDeliveryError
 
 
+@override_settings(EMAIL_VERIFICATION_REQUIRED=True)
 class AccountDeliveryRegressionTests(TestCase):
  def test_registration_email_failure_does_not_claim_delivery(self):
   with patch('core.views.send_verification_email',side_effect=MessageDeliveryError('Email could not be sent.')):
@@ -22,7 +23,7 @@ class AccountDeliveryRegressionTests(TestCase):
   self.assertEqual(r.status_code,400);exchange.assert_not_called()
 
 
-@override_settings(SMS_PROVIDER='msg91',MSG91_AUTH_KEY='unit-test-key',MSG91_TEMPLATE_ID='unit-test-template',DEBUG=False,SMS_DEV_MODE=False)
+@override_settings(WOC_LOCAL_SCREEN_OTP=False,SMS_PROVIDER='msg91',MSG91_AUTH_KEY='unit-test-key',MSG91_TEMPLATE_ID='unit-test-template',DEBUG=False,SMS_DEV_MODE=False)
 class DeliveryTests(TestCase):
  def test_console_mail_is_not_reported_as_live_delivery(self):
   with self.settings(EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend'):

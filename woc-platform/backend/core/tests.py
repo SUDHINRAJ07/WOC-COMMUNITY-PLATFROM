@@ -1,9 +1,10 @@
 from datetime import timedelta
 from django.utils import timezone
-from django.test import TestCase,Client
+from django.test import TestCase,Client,override_settings
 from django.contrib.auth.models import User
 from django.core import signing
 from .models import Profile,Program,Record,Certificate,AuditLog,EmailDeliveryLog,AuthAuditLog,PhoneOTPChallenge,OAuthIdentity,PasswordResetToken,Notification
+@override_settings(EMAIL_VERIFICATION_REQUIRED=True,WOC_LOCAL_SCREEN_OTP=False)
 class WorkflowTests(TestCase):
  def setUp(self):
   self.user=User.objects.create_user('learner@example.test','learner@example.test','LongPass!2026',first_name='Learner')
