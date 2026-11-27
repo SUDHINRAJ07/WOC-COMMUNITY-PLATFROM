@@ -1,0 +1,21 @@
+{
+  "downloaded": "2026-11-27",
+  "counts": {
+    "institution": 53366,
+    "state": 36,
+    "city": 7329,
+    "qualification": 59,
+    "skill": 184,
+    "department": 188
+  },
+  "college_source": "https://github.com/arpitagarwala/indian-institutions-data",
+  "college_commit": "1157a585fd330afd71406dfb39d6f532589b9d2a",
+  "college_origin": "https://dashboard.aishe.gov.in/hedirectory/",
+  "college_survey_parameter": "2020, as used by source extractor; registry snapshot, not guaranteed current/exhaustive",
+  "location_source": "https://download.geonames.org/export/dump/cities500.zip",
+  "location_admin_source": "https://download.geonames.org/export/dump/admin1CodesASCII.txt",
+  "location_license": "Creative Commons Attribution 4.0; https://www.geonames.org/export/",
+  "qualifications_skills": "Curated WOC reference vocabulary; custom entries remain supported",
+  "sha256": "e79d7f420ff838e898135c55b0173d896d327f04ed6b6fd59c76b12b6c7dbe0f",
+  "departments": "Curated broad field-of-study vocabulary; not exhaustive; custom entries supported"
+}

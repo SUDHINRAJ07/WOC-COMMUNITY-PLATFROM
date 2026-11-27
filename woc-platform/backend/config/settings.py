@@ -84,6 +84,7 @@ FRONTEND_URL=os.getenv('FRONTEND_URL','http://localhost:4317')
 SMS_PROVIDER=os.getenv('SMS_PROVIDER','ninzasms')
 WOC_LOCAL_SCREEN_OTP=os.getenv('WOC_LOCAL_SCREEN_OTP','false').lower()=='true'
 EMAIL_VERIFICATION_REQUIRED=os.getenv('EMAIL_VERIFICATION_REQUIRED','false').lower()=='true'
+EMAIL_SIGNUP_OTP_REQUIRED=os.getenv('EMAIL_SIGNUP_OTP_REQUIRED','false').lower()=='true'
 SMS_DEV_MODE=os.getenv('SMS_DEV_MODE','false').lower()=='true'
 SMS_TEST_MODE=os.getenv('SMS_TEST_MODE','false').lower()=='true'
 NINZASMS_API_KEY=os.getenv('NINZASMS_API_KEY','')

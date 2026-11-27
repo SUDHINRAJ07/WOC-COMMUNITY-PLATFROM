@@ -249,7 +249,7 @@ def student_profile(request):
     profile = user.profile
 
     if request.method == 'PATCH':
-        serializer = StudentProfileUpdateSerializer(data=request.data, partial=True)
+        serializer = StudentProfileUpdateSerializer(data=request.data, partial=True, context={"profile": profile})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -601,3 +601,23 @@ def student_profile_file(request, kind):
         AuthAuditLog.objects.create(user=request.user,event_type='profile_file_'+request.method.lower(),metadata={'kind':kind})
     request.user.refresh_from_db()
     return Response({'user':user_data(request.user),'profile_completion':compute_profile_completion(request.user)})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile_suggestions(request):
+ from .models import ProfileSuggestion
+ from django.db.models import Case,When,Value,IntegerField
+ import unicodedata
+ kind=request.GET.get('kind','')
+ if kind not in ['institution','state','city','qualification','skill','department']:return Response({'error':'Invalid suggestion type.'},status=400)
+ q=' '.join(request.GET.get('q','').strip().split())[:100]
+ normalized=unicodedata.normalize('NFKD',q).encode('ascii','ignore').decode().lower()
+ rows=ProfileSuggestion.objects.filter(kind=kind)
+ if kind in ['institution','city'] and len(q)<2:return Response({'results':[]})
+ if q:
+  rows=rows.filter(Q(name__icontains=q)|Q(search_name__contains=normalized)) if normalized else rows.filter(name__icontains=q)
+ state=request.GET.get('state','').strip()[:100]
+ if state and kind=='city':rows=rows.filter(state__iexact=state)
+ rows=rows.annotate(rank=Case(When(search_name__startswith=normalized,then=Value(0)),default=Value(1),output_field=IntegerField())).order_by('rank','name','source_id')[:40 if kind=='state' else 20]
+ return Response({'results':[{'id':r.pk,'name':r.name,'state':r.state,'district':r.district,'code':r.source_id if kind=='institution' else ''} for r in rows]})

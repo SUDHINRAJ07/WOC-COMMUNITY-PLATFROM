@@ -19,9 +19,11 @@ class Profile(models.Model):
  photo=models.FileField(upload_to="profiles/photos/",blank=True)
  resume_file=models.FileField(upload_to="profiles/resumes/",blank=True)
  supporting_document=models.FileField(upload_to="profiles/documents/",blank=True)
+ education_start_year=models.PositiveIntegerField(null=True,blank=True)
+ department=models.CharField(max_length=150,blank=True)
  graduation_year=models.PositiveIntegerField(null=True,blank=True)
  user=models.OneToOneField(User,on_delete=models.CASCADE)
- institution=models.CharField(max_length=200,blank=True)
+ institution=models.CharField(max_length=500,blank=True)
  age=models.PositiveIntegerField(null=True,blank=True)
  guardian_consent=models.BooleanField(default=False)
  email_verified=models.BooleanField(default=False)
@@ -32,7 +34,13 @@ class Profile(models.Model):
  notification_preferences=models.JSONField(default=dict,blank=True)
  auth_provider=models.CharField(max_length=20,default='local')
  roles=models.JSONField(default=list)
+ address=models.CharField(max_length=500,blank=True)
+ pin_code=models.CharField(max_length=6,blank=True)
+ professional_headline=models.CharField(max_length=160,blank=True)
+ languages=models.JSONField(default=list,blank=True)
+ current_status=models.CharField(max_length=20,blank=True,choices=[("studying","Studying"),("graduated","Graduated"),("working","Working")])
  bio=models.TextField(blank=True)
+ state=models.CharField(max_length=100,blank=True)
  city=models.CharField(max_length=100,blank=True)
  qualification=models.CharField(max_length=200,blank=True)
  skills=models.JSONField(default=list,blank=True)
@@ -554,3 +562,17 @@ class CampusAnnouncement(models.Model):
  created_at=models.DateTimeField(default=timezone.now,editable=False)
  class Meta:
   ordering=['-created_at']
+
+
+class ProfileSuggestion(models.Model):
+ """Public reference catalog; never grants institution affiliation or privileges."""
+ kind=models.CharField(max_length=20,db_index=True)
+ source_id=models.CharField(max_length=100)
+ name=models.CharField(max_length=500)
+ search_name=models.CharField(max_length=500,db_index=True)
+ state=models.CharField(max_length=100,blank=True,db_index=True)
+ district=models.CharField(max_length=150,blank=True)
+ source=models.CharField(max_length=100,blank=True)
+ class Meta:
+  constraints=[models.UniqueConstraint(fields=['kind','source_id'],name='unique_profile_suggestion_source')]
+  indexes=[models.Index(fields=['kind','search_name'],name='profile_suggestion_search')]

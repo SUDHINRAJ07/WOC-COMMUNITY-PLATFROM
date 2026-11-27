@@ -12,7 +12,7 @@ from .auth_services import send_sms_otp, safe_send_mail, MessageDeliveryError
 @override_settings(EMAIL_VERIFICATION_REQUIRED=True)
 class AccountDeliveryRegressionTests(TestCase):
  def test_registration_email_failure_does_not_claim_delivery(self):
-  with patch('core.views.send_verification_email',side_effect=MessageDeliveryError('Email could not be sent.')):
+  with patch('core.views.send_email_otp',side_effect=MessageDeliveryError('Email could not be sent.')):
    r=self.client.post('/api/register/',{'name':'Email Student','email':'student@example.test','password':'StrongPass!2026','age':20,'institution':'College','terms':True},content_type='application/json')
   self.assertEqual(r.status_code,201)
   self.assertEqual(r.json()['delivery_status'],'failed')

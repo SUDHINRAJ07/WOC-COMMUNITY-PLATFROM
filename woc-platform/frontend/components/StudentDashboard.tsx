@@ -1,5 +1,6 @@
 'use client';
 import {ProfileFiles} from './ProfileFiles';
+import {ProfileLanguagePicker,ProfileSuggestionInput,ProfileLocationFields,ProfileSkillPicker,ProfileInterestPicker} from './ProfileSuggestions';
 
 import React, { useState, useEffect, ReactNode } from 'react';
 import Link from 'next/link';
@@ -7,7 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   User as UserIcon, GraduationCap, BookOpen, Layers, Briefcase,
   Bookmark, ClipboardList, Award, Bell, CheckCircle, Clock,
-  ExternalLink, Search, PlayCircle, Sparkles, ShieldCheck, XCircle
+  ExternalLink, Search, PlayCircle, Sparkles, ShieldCheck, XCircle, ChevronDown
 } from 'lucide-react';
 import { useWoc, Registration } from './Platform';
 import { api } from '@/lib/api';
@@ -26,18 +27,24 @@ type TabKey =
   | 'Certificates'
   | 'Notifications';
 
-const NAV_TABS: TabKey[] = [
-  'Overview',
-  'My Profile',
-  'My College',
-  'My Learning',
-  'My Batches',
-  'Campus Engagement',
-  'Jobs & Internships',
-  'Saved Opportunities',
-  'Application History',
-  'Certificates',
-  'Notifications',
+const SECTION_DESCRIPTIONS: Record<TabKey, string> = {
+  Overview: 'Your learning progress, campus connections and career journey at a glance.',
+  'My Profile': 'Build your professional profile with your education, skills and career goals.',
+  'My College': 'Connect with your college and manage your affiliation requests.',
+  'My Learning': 'Continue your courses, track your progress and develop practical skills.',
+  'My Batches': 'View your assigned training batches, schedules and learning progress.',
+  'Campus Engagement': 'Explore campus events, join clubs and discover leadership opportunities.',
+  'Jobs & Internships': 'Discover opportunities and apply through official company recruitment channels.',
+  'Saved Opportunities': 'Revisit the jobs and internships you have bookmarked for later.',
+  'Application History': 'Keep track of your external application clicks and the status updates you record.',
+  Certificates: 'View and download certificates earned through your completed learning programs.',
+  Notifications: 'Stay informed about your learning, campus activities and account updates.',
+};
+
+const NAV_GROUPS: {label:string;tabs:TabKey[]}[] = [
+ {label:'My Account',tabs:['My Profile','My College']},
+ {label:'Learning & Training',tabs:['My Learning','My Batches','Certificates']},
+ {label:'Career Opportunities',tabs:['Jobs & Internships','Saved Opportunities','Application History']},
 ];
 
 interface StudentDashboardProps {
@@ -53,6 +60,21 @@ export function StudentDashboard({
 }: StudentDashboardProps) {
   const { user, demo, records, refresh, setUser, toast } = useWoc();
   const [tab, setTab] = useState<TabKey>('Overview');
+  const [openNavGroup,setOpenNavGroup]=useState<string|null>(null);
+  useEffect(()=>{setOpenNavGroup(NAV_GROUPS.find(group=>group.tabs.includes(tab))?.label||null)},[tab]);
+  useEffect(()=>{if(new URLSearchParams(window.location.search).get('tab')==='profile')setTab('My Profile')},[]);
+  useEffect(()=>{
+    const shell=document.querySelector<HTMLElement>('.student-dashboard');
+    if(!shell)return;
+    const measure=()=>{const header=document.querySelector('.header');shell.style.setProperty('--student-workspace-top',`${Math.max(0,header?.getBoundingClientRect().bottom ?? shell.getBoundingClientRect().top)}px`)};
+    measure();
+    const observer=new ResizeObserver(measure);
+    const header=document.querySelector('.header');if(header)observer.observe(header);
+    document.querySelectorAll('.topbar,.demo-banner,.connection-error-banner').forEach(el=>observer.observe(el));
+    window.addEventListener('resize',measure);
+    return()=>{observer.disconnect();window.removeEventListener('resize',measure)};
+  });
+
   const [selectedRecord, setSelectedRecord] = useState<Registration | null>(null);
   const [otherModuleFilter, setOtherModuleFilter] = useState<string>('all');
 
@@ -195,13 +217,20 @@ export function StudentDashboard({
     const interests = interestsInput.split(',').map((s) => s.trim()).filter(Boolean);
     const payload = {
       name: String(fd.get('name') || ''),
+      professional_headline: String(fd.get('professional_headline') || ''),
+      address: String(fd.get('address') || ''),
+      pin_code: String(fd.get('pin_code') || ''),
+      current_status: String(fd.get('current_status') || ''),
+      languages: fd.getAll('languages').map(String),
+      education_start_year: fd.get('education_start_year') ? Number(fd.get('education_start_year')) : null,
+      department: String(fd.get('department') || ''),
       graduation_year: fd.get('graduation_year') ? Number(fd.get('graduation_year')) : null,
       institution: String(fd.get('institution') || ''),
       city: String(fd.get('city') || ''),
+      state: String(fd.get('state') || ''),
       qualification: String(fd.get('qualification') || ''),
       bio: String(fd.get('bio') || ''),
       career_goals: String(fd.get('career_goals') || ''),
-      resume_url: String(fd.get('resume_url') || ''),
       linkedin_url: String(fd.get('linkedin_url') || ''),
       github_url: String(fd.get('github_url') || ''),
       skills,
@@ -315,48 +344,32 @@ export function StudentDashboard({
   }
 
   return (
-    <main id="main" className="dashboard">
+    <main id="main" className="dashboard student-dashboard">
       {/* Side Navigation */}
       <aside className="dashboard-nav">
-        <p className="eyebrow">MY WOC</p>
-        {NAV_TABS.map((t) => (
-          <button
-            key={t}
-            aria-current={tab === t ? 'page' : undefined}
-            onClick={() => {
-              setTab(t);
-              setSelectedRecord(null);
-            }}
-          >
-            {t}
-            {t === 'Notifications' && (notifications?.unread_count || 0) > 0 && (
-              <span className="tab-badge">{notifications.unread_count}</span>
-            )}
-          </button>
-        ))}
+        <button aria-current={tab==='Overview'?'page':undefined} onClick={()=>{setTab('Overview');setSelectedRecord(null)}}>Overview</button>
+        {NAV_GROUPS.map(group=><div className="student-nav-group" key={group.label}>
+          <button type="button" className={`student-nav-toggle ${group.tabs.includes(tab)?'has-active-tab':''}`} aria-expanded={openNavGroup===group.label} aria-controls={`student-nav-${group.tabs[0].replaceAll(' ','-')}`} onClick={()=>setOpenNavGroup(openNavGroup===group.label?null:group.label)}>{group.label}<ChevronDown size={15} aria-hidden="true"/></button>
+          <div className="student-nav-items" id={`student-nav-${group.tabs[0].replaceAll(' ','-')}`} hidden={openNavGroup!==group.label}>
+            {group.tabs.map(t=><button type="button" key={t} aria-current={tab===t?'page':undefined} onClick={()=>{setTab(t);setSelectedRecord(null)}}>{t}</button>)}
+          </div>
+        </div>)}
+        <button aria-current={tab==='Campus Engagement'?'page':undefined} onClick={()=>{setTab('Campus Engagement');setSelectedRecord(null)}}>Campus Engagement</button>
+        <button aria-current={tab==='Notifications'?'page':undefined} onClick={()=>{setTab('Notifications');setSelectedRecord(null)}}>Notifications{(notifications?.unread_count||0)>0&&<span className="tab-badge">{notifications.unread_count}</span>}</button>
         {user.authorization?.roles?.includes('college_admin') && <Link href="/college/">College Portal</Link>}
         {user.authorization?.roles?.includes('company_admin') && <Link href="/company/">Company Hub</Link>}
         {user.authorization?.roles?.includes('super_admin') && <Link href="/super-admin/">Super Admin</Link>}
         {user.is_staff && <Link href="/admin/">Django Admin</Link>}
-        <button
-          onClick={async () => {
-            if (!demo) await api('/logout/', 'POST');
-            setUser(null);
-            toast('Signed out.');
-          }}
-        >
-          Sign out
-        </button>
       </aside>
 
       {/* Main Content */}
       <div className="dashboard-body">
-        <p className="eyebrow">{demo ? 'BROWSER DEMO ACCOUNT' : 'STUDENT DASHBOARD'}</p>
+        {demo && <p className="eyebrow">BROWSER DEMO ACCOUNT</p>}
         <h1 style={{ marginTop: '4px' }}>
           {tab === 'Overview' ? `Hello, ${user.name.split(' ')[0]}.` : tab}
         </h1>
         <p style={{ color: 'var(--muted)', marginBottom: '24px' }}>
-          Your learning progress, college affiliation, training batches, and career journey in one place.
+          {SECTION_DESCRIPTIONS[tab]}
         </p>
 
         {selectedRecord ? (
@@ -403,7 +416,7 @@ export function StudentDashboard({
                 </div>
 
                 {/* Profile Completion Bar + College Status */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '20px', marginBottom: '24px' }}>
                   <div className="panel">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <h3 style={{ margin: 0 }}>Profile Completeness</h3>
@@ -475,7 +488,7 @@ export function StudentDashboard({
                 )}
 
                 {/* Recommended Opportunities + Recent Batches */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '20px' }}>
                   <div className="panel">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <h3 style={{ margin: 0 }}><Sparkles size={16} style={{ marginRight: '6px' }} /> Recommended Opportunities</h3>
@@ -540,56 +553,44 @@ export function StudentDashboard({
                 2. MY PROFILE TAB
                ================================================================ */}
             {tab === 'My Profile' && (
-              <div style={{ maxWidth: '780px' }}>
-                <ProfileFiles onChanged={()=>{refetchDash();}}/>
-                <form className="panel form-stack" onSubmit={handleSaveProfile}>
-                  <h2 style={{ marginTop: 0 }}>Student Profile & Career Readiness</h2>
- <p>Complete your profile after signup. Your profile is {completion.percentage}% complete.</p>
- <label>Graduation year<input name="graduation_year" type="number" min={1950} max={2100} defaultValue={user.graduation_year || ''}/></label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-                    <label>
+              <div className="student-profile-layout">
+                <ProfileFiles section="photo" completion={completion.percentage} onChanged={()=>{refetchDash();}}/>
+                <form className="panel form-stack student-profile-form" onSubmit={handleSaveProfile}>
+                  <div className="profile-section-heading"><UserIcon size={23}/><div><h2>Personal & professional details</h2><p>Share your background, education and career interests.</p></div></div>
+ <h3 className="profile-form-subheading">Personal information</h3>
+                  <div className="profile-personal-grid">
+                    <label style={{gridColumn:'1 / -1'}}>
                       Full Name
                       <input name="name" defaultValue={user.name} required />
                     </label>
-                    <label>
-                      City / Location
-                      <input name="city" defaultValue={user.city || ''} placeholder="e.g. Chennai" />
-                    </label>
+                    <label style={{gridColumn:'1 / -1'}}>Professional headline<input name="professional_headline" maxLength={160} defaultValue={user.professional_headline || ''} placeholder="Describe your current role and career focus"/></label>
+                    <label className="profile-status-field">Current status<select name="current_status" defaultValue={user.current_status || ''}><option value="">Select your current status</option><option value="studying">Studying</option><option value="graduated">Graduated</option><option value="working">Working</option></select></label>
+                    <div><ProfileLanguagePicker initialValue={user.languages}/></div>
+                    <label style={{gridColumn:'1 / -1'}}>Address<textarea name="address" maxLength={500} rows={2} defaultValue={user.address || ''} placeholder="Enter your address"/></label>
+                    <ProfileLocationFields city={user.city} state={user.state}/>
+                    <label className="profile-pin-field" style={{gridColumn:'1 / -1'}}>PIN code<input name="pin_code" inputMode="numeric" pattern="[1-9][0-9]{5}" maxLength={6} defaultValue={user.pin_code || ''} placeholder="Enter your 6-digit PIN code"/></label>
                   </div>
 
+                  <h3 className="profile-form-subheading">Education & background</h3>
+ <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))',gap:'14px'}}>
+ <label>Start year<input name="education_start_year" type="number" min={1950} max={2100} defaultValue={user.education_start_year || ''}/></label>
+ <label>Graduation year (actual or expected)<input name="graduation_year" type="number" min={1950} max={2100} defaultValue={user.graduation_year || ''}/></label>
+ <div style={{gridColumn:'1 / -1'}}><ProfileSuggestionInput name="department" label="Department / Field of study" kind="department" initialValue={user.department} placeholder="Start typing your department"/></div>
+ </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-                    <label>
-                      Educational Qualification
-                      <input name="qualification" defaultValue={user.qualification || ''} placeholder="e.g. B.Tech CSE, Final Year" />
-                    </label>
-                    <label>
-                      Institution Name (Display)
-                      <input name="institution" defaultValue={user.institution || ''} placeholder="College / University" />
-                    </label>
+                    <ProfileSuggestionInput name="qualification" label="Educational Qualification" kind="qualification" initialValue={user.qualification} placeholder="Search your qualification"/>
+                    <ProfileSuggestionInput name="institution" label="Institution Name (Display)" kind="institution" initialValue={user.institution} placeholder="Search for your institution"/>
                   </div>
 
+                  <h3 className="profile-form-subheading">Skills & career interests</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-                    <label>
-                      Skills (comma-separated)
-                      <input
-                        value={skillsInput}
-                        onChange={(e) => setSkillsInput(e.target.value)}
-                        placeholder="e.g. Python, React, SQL, UI Design"
-                      />
-                    </label>
-                    <label>
-                      Interests (comma-separated)
-                      <input
-                        value={interestsInput}
-                        onChange={(e) => setInterestsInput(e.target.value)}
-                        placeholder="e.g. Backend, AI, Product"
-                      />
-                    </label>
+                    <ProfileSkillPicker value={skillsInput} onChange={setSkillsInput}/>
+                    <ProfileInterestPicker value={interestsInput} onChange={setInterestsInput}/>
                   </div>
 
                   <label>
                     Career Goals
-                    <textarea name="career_goals" defaultValue={user.career_goals || ''} rows={2} placeholder="What roles or domains are you aiming for?" />
+                    <textarea name="career_goals" defaultValue={user.career_goals || ''} rows={2} placeholder="Share your career goals and the opportunities you are looking for." />
                   </label>
 
                   <label>
@@ -597,11 +598,8 @@ export function StudentDashboard({
                     <textarea name="bio" defaultValue={user.bio || ''} maxLength={2000} rows={3} />
                   </label>
 
+                  <h3 className="profile-form-subheading">Professional links (optional)</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-                    <label>
-                      Resume URL (HTTPS)
-                      <input type="url" name="resume_url" defaultValue={user.resume_url || ''} placeholder="https://..." />
-                    </label>
                     <label>
                       LinkedIn URL (HTTPS)
                       <input type="url" name="linkedin_url" defaultValue={user.linkedin_url || ''} placeholder="https://linkedin.com/in/..." />
@@ -618,6 +616,7 @@ export function StudentDashboard({
                 </form>
 
                 {renderPhoneVerification()}
+                <ProfileFiles section="documents" onChanged={()=>{refetchDash();}}/>
               </div>
             )}
 

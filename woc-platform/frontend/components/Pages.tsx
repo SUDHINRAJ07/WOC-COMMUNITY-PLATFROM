@@ -1,4 +1,5 @@
 'use client';
+import {SignupEmailOtp} from './SignupEmailOtp';
 import {JoinCommunity,OrganizationRegistration} from './PortalRegistration';
 
 
@@ -156,6 +157,7 @@ export function Auth({mode,registrationRole}:{mode:string;registrationRole?:'col
  const [error,setError]=useState(''),[success,setSuccess]=useState(''),[verification,setVerification]=useState(''),[busy,setBusy]=useState(false);
 
  const [requiresVerification,setRequiresVerification]=useState(true);
+ const [signupOtp,setSignupOtp]=useState<{email:string;password:string;challenge:string;failed:boolean}|null>(null);
 
  const [resendEmail,setResendEmail]=useState(''),[resendMsg,setResendMsg]=useState(''),[resendError,setResendError]=useState(''),[resendCooldown,setResendCooldown]=useState(0),[resendBusy,setResendBusy]=useState(false);
 
@@ -259,7 +261,7 @@ export function Auth({mode,registrationRole}:{mode:string;registrationRole?:'col
 
    toast(d.action==='created'?'Welcome to WOC! Account created with Google.':'Signed in with Google.');
 
-   await redirectAfterAuthentication();
+   await redirectAfterAuthentication(d.action==='created');
 
   }catch(err:any){
 
@@ -339,12 +341,19 @@ export function Auth({mode,registrationRole}:{mode:string;registrationRole?:'col
 
    if(mode==='register'){
 
+    const emailDomain=data.email.split('@')[1]?.toLowerCase();
+    if(['gmial.com','gamil.com','gmai.com','gmail.con'].includes(emailDomain)){setError('Please check your email address. Did you mean gmail.com?');setBusy(false);return;}
     const f=Object.fromEntries(new FormData(e?.target));
 
     if(registrationRole==='company' && f.confirm_password!==data.password){setError('Passwords do not match.');setBusy(false);return;}
     const organization=registrationRole?{name:f.organization_name,city:f.organization_city,website:f.organization_website||'',contact_email:registrationRole==='company'?data.email:f.organization_email,contact_phone:f.organization_phone,state:f.organization_state,registration_reference:f.organization_reference,...(registrationRole==='college'?{address:f.organization_address}:{industry:f.organization_industry,company_size:f.organization_size,contact_person:f.name,company_type:f.organization_type,cin:f.organization_cin||'',address:f.organization_address,pin_code:f.organization_pin,designation:f.designation,description:''})}:undefined;
     const d=await api('/register/','POST',{...f,...data,...(registrationRole==='company'?{}:{age:Number(f.age)}),terms:!!f.terms,guardian_consent:!!f.guardian_consent,...(registrationRole?{organization_kind:registrationRole,organization}:{} )});
 
+    if(!registrationRole && d.requires_email_verification===false){
+     const signedIn=await api('/login/','POST',{email:data.email,password:data.password});
+     setUser(signedIn.user);window.location.href='/dashboard/?tab=profile';return;
+    }
+    if(d.requires_email_verification && d.verification_method==='otp')setSignupOtp({email:data.email,password:data.password,challenge:d.challenge_id||'',failed:d.delivery_status==='failed'});
     setSuccess(d.message);
 
     setRequiresVerification(d.requires_email_verification!==false);
@@ -829,7 +838,8 @@ export function Auth({mode,registrationRole}:{mode:string;registrationRole?:'col
 
    {error&&mode!=='verify'&&mode!=='forgot-password'&&mode!=='reset-password'&&<p className="form-error" role="alert">{error}</p>}
 
-   {success&&mode==='register'&&(
+   {signupOtp&&mode==='register'&&<SignupEmailOtp key={signupOtp.email} email={signupOtp.email} initialChallenge={signupOtp.challenge} deliveryFailed={signupOtp.failed} onVerified={async()=>{const signedIn=await api('/login/','POST',{email:signupOtp.email,password:signupOtp.password});setUser(signedIn.user);setSignupOtp(null);if(!registrationRole)window.location.href='/dashboard/?tab=profile';else await redirectAfterAuthentication()}}/>}
+   {success&&mode==='register'&&!signupOtp&&(
 
     <div className="success-box" role="status" style={{marginTop:'16px'}}>
 

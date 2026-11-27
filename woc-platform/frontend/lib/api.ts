@@ -73,12 +73,12 @@ export async function api(path: string, method = 'GET', data?: unknown) {
   }
 }
 
-export async function redirectAfterAuthentication() {
+export async function redirectAfterAuthentication(preferProfile = false) {
   const response = await api("/me/");
   const destination = response.user?.authorization?.dashboard_url;
   const allowed = ["/dashboard/", "/college/", "/company/", "/super-admin/", "/onboarding/"];
   const intent = sessionStorage.getItem("woc-registration-role");
-  window.location.href = destination === "/dashboard/" && ["college","company"].includes(intent || "") ? `/onboarding/?type=${intent}` : allowed.includes(destination) ? destination : "/dashboard/";
+  window.location.href = destination === "/dashboard/" && ["college","company"].includes(intent || "") ? `/onboarding/?type=${intent}` : allowed.includes(destination) ? (preferProfile && destination === "/dashboard/" ? "/dashboard/?tab=profile" : destination) : "/dashboard/";
 }
 
 export async function uploadFile(path:string,file:File){const data=new FormData();data.set('file',file);return api(path,'POST',data);}

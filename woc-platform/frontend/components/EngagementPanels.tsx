@@ -149,7 +149,7 @@ export function StudentEngagementTab() {
       {subTab === 'events' && (
         <div>
           {!data?.upcoming_events?.length ? (
-            <div className="panel"><p style={{ color: 'var(--muted)' }}>No upcoming campus or public events right now.</p></div>
+            <div className="panel student-engagement-empty"><Calendar size={32} aria-hidden="true"/><h3>No upcoming events yet</h3><p>Campus and public events will appear here when available.</p></div>
           ) : (
             <div className="record-list">
               {data.upcoming_events.map((ev: any) => {

@@ -29,7 +29,7 @@ export default function MobileAuthForm({mode,onEmailSignup}:{mode:'login'|'regis
     if(otp!=='123456')throw Error('Use the displayed demo code.');
     setUser({id:1,name:'Demo Student',email:'',institution:'',age:18,bio:'',roles:['student'],is_staff:false,phone_number:country+phone,phone_verified:true,auth_provider:'phone'});
    }else{const d=await api('/auth/phone/','POST',{...data,terms:!!data.terms,guardian_consent:!!data.guardian_consent,action:mode,challenge_id:challenge,otp});setUser(d.user)}
-   toast('Signed in successfully.');await redirectAfterAuthentication();
+   toast('Signed in successfully.');await redirectAfterAuthentication(mode==='register');
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
 

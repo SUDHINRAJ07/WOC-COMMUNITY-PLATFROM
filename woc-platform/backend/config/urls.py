@@ -11,6 +11,7 @@ from core import engagement_views as engagement
 from django_otp.admin import OTPAdminSite
 admin.site.__class__=OTPAdminSite
 urlpatterns=[
+ path('api/profile/suggestions/',student.profile_suggestions),
  path('api/student/profile/files/<str:kind>/',student.student_profile_file),
  path('api/onboarding/<str:kind>/<str:pk>/document/',organizations.organization_document),
  path('api/super-admin/accounts/',super_admin.super_admin_accounts),

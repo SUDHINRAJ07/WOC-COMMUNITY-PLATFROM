@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core import signing
+from django.core.validators import validate_email
 from django.conf import settings
 from django.db import transaction,IntegrityError
 from django.middleware.csrf import get_token
@@ -45,13 +46,21 @@ def user_data(u):
   'institution':p.institution,
   'age':p.age,
   'bio':p.bio,
+  'professional_headline':p.professional_headline,
+  'address':p.address,
+  'pin_code':p.pin_code,
+  'languages':p.languages if isinstance(p.languages,list) else [],
+  'current_status':p.current_status,
   'city':p.city,
+  'state':p.state,
   'qualification':p.qualification,
   'skills':p.skills if isinstance(p.skills,list) else [],
   'interests':p.interests if isinstance(p.interests,list) else [],
   'career_goals':p.career_goals,
   'resume_url':p.resume_url,
   'graduation_year':p.graduation_year,
+  'education_start_year':p.education_start_year,
+  'department':p.department,
   'has_photo':bool(p.photo),'has_resume':bool(p.resume_file),'has_supporting_document':bool(p.supporting_document),
   'linkedin_url':p.linkedin_url,
   'github_url':p.github_url,
@@ -71,6 +80,19 @@ def user_data(u):
 @permission_classes([AllowAny])
 def csrf(request): return Response({'csrfToken':get_token(request),'mode':'local-backend'})
 
+def deliver_email_verification_otp(user,request):
+ email=user.email.strip().lower()
+ otp=generate_secure_otp()
+ EmailOTPChallenge.objects.filter(email=email,consumed_at__isnull=True).update(consumed_at=timezone.now())
+ challenge=EmailOTPChallenge.objects.create(email=email,otp_hash=make_password(otp),expires_at=timezone.now()+timedelta(minutes=5),ip_address=get_client_ip(request),purpose='verification',user=user)
+ try:
+  send_email_otp(email,otp,user=user)
+ except MessageDeliveryError:
+  challenge.consumed_at=timezone.now();challenge.save(update_fields=['consumed_at'])
+  raise
+ log_auth_event(user,'email_otp_sent',request,metadata={'email':email})
+ return {'challenge_id':str(challenge.id),'expires_in':300}
+
 @csrf_protect
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -81,7 +103,10 @@ def register(request):
  company_signup=d.get('organization_kind')=='company'
  try: age=None if company_signup and not d.get('age') else int(d.get('age',0))
  except (ValueError,TypeError): return Response({'error':'Enter a valid age.'},status=400)
- if not name or '@' not in email or len(email)>254: return Response({'error':'A name and valid email are required.'},status=400)
+ if not name: return Response({'error':'Enter your full name.'},status=400)
+ try: validate_email(email)
+ except ValidationError: return Response({'error':'Enter a valid email address.'},status=400)
+ if len(email)>254: return Response({'error':'Enter a valid email address.'},status=400)
  if age is not None and (age<13 or age>100): return Response({'error':'Membership is available from age 13.'},status=400)
  if age is not None and age<18 and not d.get('guardian_consent'): return Response({'error':'School and guardian permission is required for under-18 participation.'},status=400)
  if company_signup and 'confirm_password' in d and d.get('confirm_password')!=d.get('password'):
@@ -120,17 +145,16 @@ def register(request):
      CompanyMembership.objects.create(user=u,company=org)
     AuthAuditLog.objects.create(user=u,event_type=organization_kind+'_onboarding_requested',metadata={'organization_id':str(org.pk),'source':'registration'})
  except IntegrityError: return Response({'error':'An account already exists with this email.'},status=400)
- if not settings.EMAIL_VERIFICATION_REQUIRED:
+ if not (settings.EMAIL_VERIFICATION_REQUIRED or settings.EMAIL_SIGNUP_OTP_REQUIRED):
   create_in_app_notification(u,'Welcome to WOC. Your account is ready. Sign in with your email and password.')
   log_auth_event(u,'registered',request)
   return Response({'message':'Account created. You can now sign in with your email and password.','requires_email_verification':False},status=201)
- try: url=send_verification_email(u,request)
- except MessageDeliveryError as exc:
-  return Response({'message':'Your account was created. Verify your email before signing in.','delivery_status':'failed','delivery_error':str(exc)},status=201)
  log_auth_event(u,'registered',request)
- result={'message':'Account created. Check your email for verification.'}
- if settings.DEBUG: result['development_verification_url']=url
- return Response(result,status=201)
+ log_auth_event(u,'signup_email_otp_required',request)
+ try: result=deliver_email_verification_otp(u,request)
+ except MessageDeliveryError:
+  return Response({'message':'Account created. Verify your email to continue.','requires_email_verification':True,'delivery_status':'failed','delivery_error':'Your verification email could not be sent. Check your address and try sending a new code.','verification_method':'otp'},status=201)
+ return Response({'message':'Account created. Enter the code sent to your email.','requires_email_verification':True,'verification_method':'otp',**result},status=201)
 
 @csrf_protect
 @api_view(['POST'])
@@ -299,16 +323,10 @@ def send_email_otp_view(request):
   return Response({'message':'If an unverified account exists with this email, a 6-digit verification code has been sent.','expires_in':300},status=200)
  if EmailOTPChallenge.objects.filter(email=email,created_at__gte=timezone.now()-timedelta(seconds=60)).exists():
   return Response({'error':'Please wait 60 seconds before requesting another email OTP.'},status=429)
- otp=generate_secure_otp()
- EmailOTPChallenge.objects.filter(email=email,consumed_at__isnull=True).update(consumed_at=timezone.now())
- challenge=EmailOTPChallenge.objects.create(email=email,otp_hash=make_password(otp),expires_at=timezone.now()+timedelta(minutes=5),ip_address=get_client_ip(request),purpose='verification',user=u)
- try:
-  send_email_otp(email,otp,user=u)
- except MessageDeliveryError as exc:
-  challenge.consumed_at=timezone.now();challenge.save(update_fields=['consumed_at'])
-  return Response({'error':str(exc)},status=503)
- log_auth_event(u,'email_otp_sent',request,metadata={'email':email})
- return Response({'message':'A 6-digit verification code has been sent to your email address.','challenge_id':str(challenge.id),'expires_in':300},status=200)
+ try: result=deliver_email_verification_otp(u,request)
+ except MessageDeliveryError:
+  return Response({'error':'Your verification email could not be sent. Check your address and try again shortly.'},status=503)
+ return Response({'message':'A 6-digit verification code has been sent to your email address.',**result},status=200)
 
 
 @csrf_protect
@@ -333,6 +351,8 @@ def verify_email_otp_view(request):
    if not challenge: return Response({'error':'Invalid or expired verification code.'},status=400)
   else:
    return Response({'error':'Challenge ID or email is required.'},status=400)
+  if email and email!=challenge.email:
+   return Response({'error':'This code belongs to another email address.'},status=403)
   if challenge.user_id and request.user.is_authenticated and challenge.user_id!=request.user.id:
    return Response({'error':'This code belongs to another account.'},status=403)
   if challenge.consumed_at:
@@ -463,7 +483,8 @@ def sign_in(request):
  except ValueError:local_request=False
  forwarded=any(request.META.get(key) for key in ['HTTP_X_FORWARDED_FOR','HTTP_X_FORWARDED_HOST','HTTP_X_FORWARDED_PROTO','HTTP_FORWARDED'])
  local_admin=bool(settings.DEBUG and getattr(settings,'WOC_LOCAL_ADMIN_PASSWORD_LOGIN',False) and u.is_superuser and local_request and not forwarded)
- if not hasattr(u,'profile') or (settings.EMAIL_VERIFICATION_REQUIRED and not u.profile.email_verified and not local_admin):
+ signup_requires_verification=AuthAuditLog.objects.filter(user=u,event_type='signup_email_otp_required').exists()
+ if not hasattr(u,'profile') or ((settings.EMAIL_VERIFICATION_REQUIRED or signup_requires_verification) and not u.profile.email_verified and not local_admin):
   log_auth_event(u,'login_blocked_unverified',request)
   return Response({'error':'Verify your email first.'},status=403)
  device=None

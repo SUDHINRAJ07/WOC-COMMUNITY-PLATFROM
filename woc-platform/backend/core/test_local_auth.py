@@ -7,7 +7,7 @@ from django.utils import timezone
 from .models import Profile, PhoneOTPChallenge
 
 
-@override_settings(DEBUG=True, WOC_LOCAL_SCREEN_OTP=True, SMS_TEST_MODE=True, EMAIL_VERIFICATION_REQUIRED=False)
+@override_settings(DEBUG=True, WOC_LOCAL_SCREEN_OTP=True, SMS_TEST_MODE=True, EMAIL_VERIFICATION_REQUIRED=False, EMAIL_SIGNUP_OTP_REQUIRED=False)
 class LocalAuthenticationTests(TestCase):
  def setUp(self):
   from django.core.cache import cache

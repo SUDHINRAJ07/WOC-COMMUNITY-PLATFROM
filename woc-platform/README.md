@@ -28,3 +28,17 @@ Codes expire after five minutes, permit at most three incorrect attempts, are si
 Django session cookies, CSRF protection, profile fields, notifications, program registrations, learning data and staff administration remain in place. All 25 frontend program entries and existing theme CSS are unchanged. The private original backend/database snapshot remains under the Git-ignored `.local-backups/backend-removed-2026-11-26/` folder at the repository root. It is never committed.
 
 The earlier Firebase code remains isolated from the local screen-OTP route. Firebase credentials are not required for this flow. No live SMS, email delivery or Google-provider verification is claimed by this local implementation. No payments or deployment were performed.
+
+
+## Student profile suggestion catalog
+
+After migrations on a new database, run `python manage.py import_profile_suggestions` from `backend` using its virtual environment. This idempotent offline import reads the bundled compressed catalog and updates only `ProfileSuggestion` reference rows. It does not create approved colleges or memberships. The authenticated `/api/profile/suggestions/?kind=institution&q=alpha` endpoint searches the database; supported kinds are institution, state, city, qualification and skill. City queries support a state filter. Existing profile values and custom entries remain supported.
+
+The bundled snapshot contains 53,366 AISHE-derived college names (via the independently maintained indian-institutions-data repository), 36 States/UTs and 7,329 GeoNames city/town entries. It is not a guarantee of current/exhaustive college coverage. Location data uses the GeoNames cities500 extract, so very small places may be absent. Source URLs, source commit, download date and checksum are recorded in `backend/core/data/profile-suggestions-sources.json`; the college snapshot license is retained alongside it. Location data attribution: https://www.geonames.org/ (Creative Commons Attribution). Qualification and skill entries are a curated WOC vocabulary, not an official taxonomy. All network downloads happen during maintenance, never while a student types.
+
+### Signup email OTP
+Set `EMAIL_SIGNUP_OTP_REQUIRED=true` in the private backend environment to require a five-minute, single-use email code for new email/password registrations. Existing accounts remain unchanged when `EMAIL_VERIFICATION_REQUIRED=false`; new accounts are individually marked as requiring verification and cannot bypass it at password login. Keep `EMAIL_VERIFICATION_REQUIRED=true` only if all existing unverified accounts should also be blocked. Google authentication and mobile OTP are separate, unchanged flows.
+
+Configure `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST=smtp.gmail.com`, `EMAIL_PORT=587`, `EMAIL_USE_TLS=true`, `EMAIL_USE_SSL=false`, a sender Gmail address in `EMAIL_HOST_USER`, its private Google App Password in `EMAIL_HOST_PASSWORD`, and a matching `DEFAULT_FROM_EMAIL`. Never commit the actual `.env` or credentials. Configure production environment variables separately; a Git push does not copy local secrets. Signup responses never expose the OTP or a development verification link. Legacy link-verification endpoints remain available for previously issued links.
+
+Render Free blocks outbound SMTP ports 25/465/587. Gmail SMTP therefore requires an SMTP-capable host/paid Render instance; a free Render deployment needs a separately configured HTTPS email API instead. Do not claim live delivery based solely on local tests or provider acceptance.
