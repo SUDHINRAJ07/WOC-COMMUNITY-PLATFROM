@@ -107,3 +107,8 @@ urlpatterns=[
  path('api/admin/records/',v.admin_records),
  path('api/certificates/<uuid:pk>/',v.certificate)
 ]
+
+from core import opportunity_email_views
+urlpatterns += [path("api/student/opportunities/<uuid:pk>/apply/",opportunity_email_views.apply_by_email)]
+
+urlpatterns += [path("api/campus/events/<uuid:pk>/poster/",engagement.event_poster)]

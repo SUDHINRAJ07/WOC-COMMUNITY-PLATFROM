@@ -1,5 +1,6 @@
 'use client';
 
+import {OpportunityApply} from './OpportunityApply';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -9,6 +10,13 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useWoc } from './Platform';
+
+function presentOpportunity(opp:any){
+ if(!opp?.sample_listing)return opp;
+ const clean=(value:string)=>value?.replace(/\s*\(demo[^)]*\)/gi,'').replace(/\bdemo\s*/gi,'').trim();
+ return {...opp,title:clean(opp.title),company_name:clean(opp.company_name),compensation:clean(opp.compensation),responsibilities:clean(opp.responsibilities),benefits:clean(opp.benefits),description:`Explore ${clean(opp.title).toLowerCase()} responsibilities, develop practical skills and collaborate with the ${opp.department || 'professional'} team.`};
+}
+function CompanyMark({opp}:{opp:any}){return opp.company_logo?<img className="career-company-logo" src={opp.company_logo} alt={opp.company_name}/>:<span className="career-company-monogram" aria-label={`${opp.company_name} logo`}>{opp.company_name.split(' ').slice(0,2).map((part:string)=>part[0]).join('')}</span>}
 
 export function CareerPortal() {
   const [tab, setTab] = useState<'all' | 'job' | 'internship'>('all');
@@ -37,11 +45,12 @@ export function CareerPortal() {
   const hasPrev = !!data?.previous;
 
   return (
-    <main id="main">
-      <section className="hero page-hero" style={{ minHeight: 'auto', padding: '60px 0 40px' }}>
-        <div className="container hero-content">
+    <main id="main" className="feature-catalogue">
+      <section className="page-hero careers-intro">
+        <div className="container">
+          <Link href="/" className="breadcrumb">Home / Careers</Link>
           <p className="eyebrow">CAREERS & OPPORTUNITIES</p>
-          <h1>Find your next step.<br />Connect with real industry.</h1>
+          <h1>Find your next step. Connect with real industry.</h1>
           <p style={{ maxWidth: '640px' }}>
             Discover verified internships, fresher opportunities, and roles from approved company partners. Apply directly via official recruitment channels.
           </p>
@@ -160,67 +169,13 @@ export function CareerPortal() {
   );
 }
 
-function OpportunityCard({ opportunity: opp }: { opportunity: any }) {
-  return (
-    <div className="card feature-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-        <span className={`label ${opp.opportunity_type === 'internship' ? 'outline' : ''}`}>
-          {opp.opportunity_type.toUpperCase()}
-        </span>
-        <span style={{ fontSize: '12px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <MapPin size={13} /> {opp.work_mode}
-        </span>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-        {opp.company_logo ? (
-          <img src={opp.company_logo} alt={opp.company_name} style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'contain' }} />
-        ) : (
-          <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: '#EAE7E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Building2 size={18} style={{ color: 'var(--muted)' }} />
-          </div>
-        )}
-        <div>
-          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{opp.company_name}</h4>
-          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{opp.location || opp.company_city || 'India'}</span>
-        </div>
-      </div>
-
-      <h3 style={{ fontSize: '18px', margin: '0 0 10px', lineHeight: 1.3 }}>
-        <Link href={`/careers/opportunity/?id=${opp.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-          {opp.title}
-        </Link>
-      </h3>
-
-      <p style={{ fontSize: '13px', color: '#4B5563', flex: 1, margin: '0 0 16px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {opp.description}
-      </p>
-
-      {opp.required_skills?.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
-          {opp.required_skills.slice(0, 3).map((sk: string) => (
-            <span key={sk} style={{ fontSize: '11px', background: '#F3F4F6', padding: '3px 8px', borderRadius: '4px', color: '#374151' }}>
-              {sk}
-            </span>
-          ))}
-          {opp.required_skills.length > 3 && (
-            <span style={{ fontSize: '11px', color: 'var(--muted)', alignSelf: 'center' }}>
-              +{opp.required_skills.length - 3} more
-            </span>
-          )}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EAE7E1', paddingTop: '14px', marginTop: 'auto' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--crimson)' }}>
-          {opp.compensation || (opp.is_paid ? 'Paid' : 'Unpaid')}
-        </span>
-        <Link href={`/careers/opportunity/?id=${opp.id}`} className="button small outline">
-          View Details
-        </Link>
-      </div>
-    </div>
-  );
+function OpportunityCard({opportunity}:{opportunity:any}){
+ const opp=presentOpportunity(opportunity);
+ return <article className="career-opportunity-card"><div className="career-card-top"><span className="career-type-badge">{opp.opportunity_type==='internship'?'Internship':'Job'}</span><span>{opp.work_mode.replaceAll('_',' ')}</span></div>
+ <div className="career-company-row"><CompanyMark opp={opp}/><div><strong>{opp.company_name}</strong><p>{opp.location||opp.company_city||'India'}</p></div></div>
+ <h3><Link href={`/careers/opportunity/?id=${opp.id}`}>{opp.title}</Link></h3>{opp.sample_listing&&<span className="career-sample-label">Sample listing</span>}
+ <p className="career-card-description">{opp.description}</p><div className="career-skill-tags">{opp.required_skills?.slice(0,3).map((skill:string)=><span key={skill}>{skill}</span>)}</div>
+ <div className="career-card-footer"><strong>{opp.compensation||(opp.is_paid?'Paid':'Unpaid')}</strong><Link className="button small outline" href={`/careers/opportunity/?id=${opp.id}`}>View details</Link></div></article>;
 }
 
 export function OpportunityDetail() {
@@ -238,6 +193,7 @@ export function OpportunityDetail() {
     queryKey: ['opportunity-detail', oppId],
     queryFn: () => api(`/opportunities/${oppId}/`),
     enabled: !!oppId,
+    select: presentOpportunity,
   });
 
   async function trackClick() {
@@ -304,21 +260,6 @@ export function OpportunityDetail() {
     );
   }
 
-  // Pre-formatted mailto application link
-  const mailSubject = encodeURIComponent(`Application for ${opp.title} via WOC`);
-  const mailBody = encodeURIComponent(
-    `Dear Hiring Team at ${opp.company_name},\n\n` +
-    `I am writing to express my interest in the ${opp.title} (${opp.opportunity_type}) opportunity discovered on THE WOC platform.\n\n` +
-    `Please find my qualifications and details summarized below:\n` +
-    `- Highest Qualification: \n` +
-    `- Key Skills: ${opp.required_skills?.join(', ') || ''}\n` +
-    `- Contact Number: \n\n` +
-    `I have attached my resume for your review. I look forward to the possibility of discussing how my skills contribute to your team.\n\n` +
-    `Sincerely,\n` +
-    `[Your Full Name]`
-  );
-  const mailtoLink = `mailto:${opp.recruitment_email}?subject=${mailSubject}&body=${mailBody}`;
-
   return (
     <main id="main">
       <div className="container" style={{ paddingTop: '32px' }}>
@@ -333,19 +274,13 @@ export function OpportunityDetail() {
             <span className={`label ${opp.opportunity_type === 'internship' ? 'outline' : ''}`}>
               {opp.opportunity_type.toUpperCase()}
             </span>
-            <span className="status-pill status-approved">VERIFIED EMPLOYER</span>
+            <span className="status-pill status-approved">{opp.sample_listing?'SAMPLE LISTING':'APPROVED EMPLOYER'}</span>
           </div>
 
           <h1 style={{ fontSize: '32px', lineHeight: 1.2, margin: '0 0 16px' }}>{opp.title}</h1>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-            {opp.company_logo ? (
-              <img src={opp.company_logo} alt={opp.company_name} style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'contain' }} />
-            ) : (
-              <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: '#EAE7E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Building2 size={24} style={{ color: 'var(--muted)' }} />
-              </div>
-            )}
+            <CompanyMark opp={opp}/>
             <div>
               <h3 style={{ margin: 0, fontSize: '18px' }}>{opp.company_name}</h3>
               {opp.company_website && (
@@ -436,11 +371,7 @@ export function OpportunityDetail() {
 
             <h4 style={{ margin: '0 0 10px', fontSize: '14px' }}>Apply Directly to Employer</h4>
 
-            {opp.recruitment_email && (
-              <a href={mailtoLink} onClick={trackClick} className="button full" style={{ marginBottom: '10px' }}>
-                <Mail size={16} style={{ marginRight: '6px' }} /> Apply by Email
-              </a>
-            )}
+            {opp.recruitment_email && <OpportunityApply id={oppId} signedIn={!!user&&!demo}/>}
 
             {opp.careers_url && (
               <a
@@ -463,7 +394,7 @@ export function OpportunityDetail() {
             )}
 
             <p style={{ fontSize: '11px', color: 'var(--muted)', lineHeight: 1.4, margin: '14px 0 0' }}>
-              <strong>Direct Application:</strong> WOC does not collect your resume or act as an ATS intermediary. You will apply directly to the employer via their official email or careers portal.
+              <strong>Direct Application:</strong> With your consent, WOC emails your profile and PDF resume to the company. Website applications are completed on the employer’s own portal. No shortlisting or interview management is performed here.
             </p>
           </div>
         </aside>

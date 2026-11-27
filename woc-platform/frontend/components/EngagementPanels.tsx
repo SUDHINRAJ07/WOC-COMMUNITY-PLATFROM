@@ -1,13 +1,50 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Calendar, Users, Award, Megaphone, PlusCircle, CheckCircle,
   XCircle, Shield, Trash2, ShieldAlert, UserCheck, MapPin
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api,getApiBase } from '@/lib/api';
 import { useWoc } from './Platform';
+
+function eventBannerSrc(ev:any){
+ if(ev.poster_url)return getApiBase().replace(/\/api$/,'')+ev.poster_url;
+ const title=String(ev.title||'').toLowerCase();
+ if(title.includes('innovation')&&title.includes('workshop'))return '/images/campus-events/innovation-skills-workshop-2026.jpg?v=2';
+ if(title.includes('prompt')||title.includes('bootcamp'))return '/images/campus-events/ai-prompt-bootcamp-2026.jpg?v=2';
+ if(title.includes('startup')||title.includes('pitch'))return '/images/campus-events/startup-pitch-arena-2026.jpg?v=2';
+ if(title.includes('ui/ux')||title.includes('design jam'))return '/images/campus-events/uiux-design-jam-2026.jpg?v=2';
+ if(title.includes('cybersecurity')||title.includes('defense lab'))return '/images/campus-events/cybersecurity-lab-2026.jpg?v=2';
+ if(title.includes('design challenge'))return '/images/campus-events/campus-design-challenge-2026.jpg';
+ if(title.includes('cultural showcase'))return '/images/campus-events/annual-cultural-showcase-2026.jpg';
+ if(title.includes('sports')&&title.includes('teamwork'))return '/images/campus-events/sports-teamwork-day-2026.jpg';
+ if(/\b(marathon|run)\b/.test(title))return '/images/campus-events/marathon-2026.png';
+ if(/\bcricket\b/.test(title))return '/images/sports-cricket.webp';
+ if(/\bfootball\b/.test(title))return '/images/sports-football.webp';
+ if(/\bbadminton\b/.test(title))return '/images/sports-badminton.webp';
+ if(/\bdance\b/.test(title))return '/images/campus-events/dance-fest-2026.png';
+ if(/\bmusic\b/.test(title))return '/images/music-performance.webp';
+ if(/\btally/.test(title))return '/images/campus-events/tallyprime-workshop-2026.png';
+ if(/\bhackathon\b/.test(title))return '/images/campus-events/hackathon-2026.png';
+ if(/\b(energy|expo)\b/.test(title))return '/images/campus-events/renewable-energy-expo-2026.png';
+ if(title.includes('artificial intelligence')||/\bai\b/.test(title))return '/images/artificial-intelligence-v2.webp';
+ const byType:Record<string,string>={
+  workshop:'/images/campus-events/innovation-skills-workshop-2026.jpg',
+  technical:'/images/campus-events/hackathon-2026.png',
+  competition:'/images/campus-events/campus-design-challenge-2026.jpg',
+  webinar:'/images/learning-access.webp',
+  seminar:'/images/careers-conversation.webp',
+  symposium:'/images/campus-events/renewable-energy-expo-2026.png',
+  sports:'/images/campus-events/sports-teamwork-day-2026.jpg',
+  cultural:'/images/campus-events/annual-cultural-showcase-2026.jpg',
+ };
+ return byType[ev.event_type]||'/images/campus-hero.webp';
+}
+
+function EventPostMedia({event}:{event:any}){return <>{event.poster_url&&<img src={getApiBase().replace(/\/api$/,'')+event.poster_url} alt={`${event.title} event poster`} loading="lazy" className="campus-event-poster"/>}{event.organizer_name&&<p className="campus-event-organizer"><strong>Organized by:</strong> {event.organizer_name}{event.organizer_contact&&<> · {event.organizer_contact}</>}</p>}{event.end_date&&<p className="campus-event-meta">Ends: {new Date(event.end_date).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</p>}{event.registration_deadline&&<p className="campus-event-meta">Register by: {new Date(event.registration_deadline).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</p>}</>}
+function localEventDate(value?:string){if(!value)return '';const date=new Date(value);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 
 // ============================================================================
 // 1. STUDENT ENGAGEMENT TAB (Events, Clubs, Leadership, Achievements)
@@ -20,9 +57,11 @@ export function StudentEngagementTab() {
   const [annContent, setAnnContent] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const [requestedEvent,setRequestedEvent]=useState('');
+  useEffect(()=>{setRequestedEvent(new URLSearchParams(window.location.search).get('event')||'')},[]);
   const { data, refetch, isLoading } = useQuery({
-    queryKey: ['student-engagement', user?.id],
-    queryFn: () => api('/student/engagement/'),
+    queryKey: ['student-engagement', user?.id,requestedEvent],
+    queryFn: () => api('/student/engagement/'+(requestedEvent?'?event='+encodeURIComponent(requestedEvent):'')),
     enabled: !!user && !demo,
   });
 
@@ -151,40 +190,23 @@ export function StudentEngagementTab() {
           {!data?.upcoming_events?.length ? (
             <div className="panel student-engagement-empty"><Calendar size={32} aria-hidden="true"/><h3>No upcoming events yet</h3><p>Campus and public events will appear here when available.</p></div>
           ) : (
-            <div className="record-list">
-              {data.upcoming_events.map((ev: any) => {
-                const isReg = ev.my_registration?.status === 'registered';
-                return (
-                  <div key={ev.id} className="record" style={{ flexWrap: 'wrap', gap: '12px' }}>
-                    <div style={{ flex: 1, minWidth: '250px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                        <span className="label">{ev.event_type}</span>
-                        <span className={`status-pill ${ev.status}`}>{ev.visibility === 'public' ? 'Public' : 'College'}</span>
-                      </div>
-                      <h3 style={{ margin: '4px 0' }}>{ev.title}</h3>
-                      <p style={{ margin: '0 0 4px', fontSize: '13px', color: 'var(--muted)' }}>
-                        {ev.institution_name} • <MapPin size={13} style={{ verticalAlign: 'middle' }} /> {ev.venue} • {new Date(ev.event_date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '13px' }}>{ev.description}</p>
-                      <small style={{ color: 'var(--muted)' }}>
-                        {ev.registered_count} / {ev.capacity} registered {ev.eligibility ? `• Eligibility: ${ev.eligibility}` : ''}
-                      </small>
-                    </div>
-                    <div>
-                      {isReg ? (
-                        <button className="button small outline" onClick={() => cancelEvent(ev.id)}>Cancel Registration</button>
-                      ) : (
-                        <button
-                          className="button small"
-                          disabled={ev.registered_count >= ev.capacity}
-                          onClick={() => registerEvent(ev.id)}
-                        >
-                          {ev.registered_count >= ev.capacity ? 'Full' : 'Register'}
-                        </button>
-                      )}
-                    </div>
+            <div className="campus-event-grid">
+              {data.upcoming_events.map((ev:any)=>{
+                const isReg=ev.my_registration?.status==='registered';
+                const full=ev.registered_count>=ev.capacity;
+                const date=new Date(ev.event_date);
+                return <article key={ev.id} className={`campus-post-card ${requestedEvent===ev.id?'notification-target-event':''}`} id={`event-${ev.id}`}>
+                  <div className="campus-post-banner"><img src={eventBannerSrc(ev)} alt={`${ev.title} event banner`} loading="lazy"/><div className="campus-post-date"><strong>{date.getDate()}</strong><span>{date.toLocaleDateString('en-IN',{month:'short'})}</span></div></div>
+                  <div className="campus-post-content">
+                    <div className="campus-post-badges"><span>{ev.event_type.replaceAll('_',' ')}</span><span>{ev.visibility==='public'?'Open to all colleges':'College event'}</span>{isReg&&<span>Registered</span>}</div>
+                    <p className="campus-post-college">{ev.institution_name}</p>
+                    <h3>{ev.title}</h3>
+                    <div className="campus-post-info"><p><Calendar size={15}/><span>{date.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})} · {date.toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'})}</span></p><p><MapPin size={15}/><span>{ev.venue}</span></p>{ev.organizer_name&&<p><Users size={15}/><span>{ev.organizer_name}</span></p>}</div>
+                    <p className="campus-post-description">{ev.description}</p>
+                    <details className="campus-post-details"><summary>Event details</summary><p>{ev.description}</p>{ev.organizer_contact&&<p><strong>Organizer contact:</strong> {ev.organizer_contact}</p>}{ev.end_date&&<p><strong>Ends:</strong> {new Date(ev.end_date).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</p>}{ev.registration_deadline&&<p><strong>Register by:</strong> {new Date(ev.registration_deadline).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</p>}{ev.eligibility&&<p><strong>Eligibility:</strong> {ev.eligibility}</p>}</details>
                   </div>
-                );
+                  <footer className="campus-post-footer"><span><Users size={15}/>{ev.registered_count} / {ev.capacity} registered</span>{isReg?<button className="button small outline" onClick={()=>cancelEvent(ev.id)}>Cancel registration</button>:<button className="button small" disabled={full} onClick={()=>registerEvent(ev.id)}>{full?'Full':'Register'}</button>}</footer>
+                </article>;
               })}
             </div>
           )}
@@ -340,6 +362,8 @@ export function CollegeEngagementTab({ activeStudents }: { activeStudents: any[]
   const { toast } = useWoc();
   const [subTab, setSubTab] = useState<'events' | 'clubs' | 'leadership' | 'announcements'>('events');
   const [eventModal, setEventModal] = useState(false);
+  const [editingEvent,setEditingEvent]=useState<any>(null);
+  const [eventBusy,setEventBusy]=useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [clubModal, setClubModal] = useState(false);
   const [selectedClub, setSelectedClub] = useState<any>(null);
@@ -367,26 +391,15 @@ export function CollegeEngagementTab({ activeStudents }: { activeStudents: any[]
   });
 
   async function createEvent(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    try {
-      await api('/college/events/', 'POST', {
-        title: fd.get('title'),
-        event_type: fd.get('event_type'),
-        description: fd.get('description'),
-        eligibility: fd.get('eligibility') || '',
-        venue: fd.get('venue'),
-        event_date: new Date(String(fd.get('event_date'))).toISOString(),
-        capacity: Number(fd.get('capacity') || 100),
-        visibility: fd.get('visibility') || 'college',
-      });
-      toast('Campus event created.');
-      setEventModal(false);
-      refetchEvents();
-      refetchStats();
-    } catch (err: any) {
-      toast(err?.message || 'Failed to create event.');
-    }
+    e.preventDefault();if(eventBusy)return;setEventBusy(true);
+    const fd=new FormData(e.currentTarget);
+    try{
+      for(const key of ['event_date','end_date','registration_deadline']){const value=String(fd.get(key)||'');fd.set(key,value?new Date(value).toISOString():'')}
+      const poster=fd.get('poster_image');if(!(poster instanceof File)||!poster.size)fd.delete('poster_image');
+      if(poster instanceof File&&poster.size>5*1024*1024)throw new Error('Poster must be up to 5 MB.');
+      await api(editingEvent?`/college/events/${editingEvent.id}/`:'/college/events/',editingEvent?'PATCH':'POST',fd);
+      toast(editingEvent?'Campus event updated.':'Campus event published.');setEventModal(false);setEditingEvent(null);refetchEvents();refetchStats();
+    }catch(err:any){toast(err?.message||'Could not save event.')}finally{setEventBusy(false)}
   }
 
   async function updateParticipant(eventId: string, regId: string, statusVal: string, achievement?: string) {
@@ -513,20 +526,21 @@ export function CollegeEngagementTab({ activeStudents }: { activeStudents: any[]
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
             <h3 style={{ margin: 0 }}>Campus Events</h3>
-            <button className="button small" onClick={() => setEventModal(true)}><PlusCircle size={15} style={{ marginRight: '6px' }} /> Create Event</button>
+            <button className="button small" onClick={() => {setEditingEvent(null);setEventModal(true)}}><PlusCircle size={15} style={{ marginRight: '6px' }} /> Create Event</button>
           </div>
           <div className="record-list">
             {(eventsData?.results || []).map((ev: any) => (
               <div key={ev.id} className="record" style={{ flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <span className="label">{ev.event_type} • {ev.visibility}</span>
-                  <h3 style={{ margin: '4px 0' }}>{ev.title}</h3>
+                  <h3 style={{ margin: '4px 0' }}>{ev.title}</h3><EventPostMedia event={ev}/>
                   <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
                     {ev.venue} • {new Date(ev.event_date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} • {ev.registered_count}/{ev.capacity} registered
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span className={`status-pill ${ev.status}`}>{ev.status}</span>
+                  <button className="button small outline" disabled={ev.status==='suspended'} onClick={()=>{setEditingEvent(ev);setEventModal(true)}}>Edit event</button>
                   <button className="button small outline" onClick={async () => setSelectedEvent(await api(`/college/events/${ev.id}/`))}>
                     Participants ({ev.registered_count})
                   </button>
@@ -621,32 +635,39 @@ export function CollegeEngagementTab({ activeStudents }: { activeStudents: any[]
       {eventModal && (
         <div className="modal-backdrop" onClick={() => setEventModal(false)}>
           <div className="modal" style={{ maxWidth: '540px' }} onClick={(e) => e.stopPropagation()}>
-            <h2>Create Campus Event</h2>
-            <form onSubmit={createEvent} className="form-stack">
-              <label>Title<input name="title" required /></label>
+            <h2>{editingEvent?'Edit Campus Event':'Create Campus Event'}</h2>
+            <form key={editingEvent?.id||'new-event'} onSubmit={createEvent} className="form-stack">
+              <label>Title<input name="title" defaultValue={editingEvent?.title||''} required /></label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <label>Type
-                  <select name="event_type">
-                    <option value="technical">Technical</option><option value="workshop">Workshop</option>
+                  <select name="event_type" defaultValue={editingEvent?.event_type||'technical'}>
+                    <option value="symposium">Symposium</option><option value="technical">Technical</option><option value="workshop">Workshop</option>
                     <option value="webinar">Webinar</option><option value="seminar">Seminar</option>
                     <option value="competition">Competition</option><option value="sports">Sports</option>
                     <option value="cultural">Cultural</option>
                   </select>
                 </label>
                 <label>Visibility
-                  <select name="visibility"><option value="college">College Only</option><option value="public">Public</option></select>
+                  <select name="visibility" defaultValue={editingEvent?.visibility||'college'}><option value="college">College Only</option><option value="public">Public</option></select>
                 </label>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <label>Date & Time<input type="datetime-local" name="event_date" required /></label>
-                <label>Capacity<input type="number" name="capacity" min={1} defaultValue={100} /></label>
+                <label>Date & Time<input type="datetime-local" name="event_date" defaultValue={localEventDate(editingEvent?.event_date)} required /></label>
+                <label>Capacity<input type="number" name="capacity" min={1} defaultValue={editingEvent?.capacity||100} /></label>
               </div>
-              <label>Venue<input name="venue" required /></label>
-              <label>Eligibility<input name="eligibility" placeholder="e.g. All B.Tech students" /></label>
-              <label>Description<textarea name="description" rows={3} required /></label>
+              <label>End date & time<input type="datetime-local" name="end_date" defaultValue={localEventDate(editingEvent?.end_date)}/></label>
+              <label>Registration closes<input type="datetime-local" name="registration_deadline" defaultValue={localEventDate(editingEvent?.registration_deadline)}/></label>
+              <label>Organized by<input name="organizer_name" maxLength={200} required defaultValue={editingEvent?.organizer_name||''} placeholder="College, department, club or organizing team"/></label>
+              <label>Organizer contact<input name="organizer_contact" maxLength={150} defaultValue={editingEvent?.organizer_contact||''} placeholder="Contact email or phone number"/></label>
+              <label>Event poster<input type="file" name="poster_image" accept="image/jpeg,image/png,image/webp"/><small>JPG, PNG or WebP · Maximum 5 MB. Uploading replaces the existing poster.</small></label>
+              {editingEvent&&<EventPostMedia event={editingEvent}/>}
+              <label>Status<select name="status" defaultValue={editingEvent?.status||'upcoming'}><option value="upcoming">Upcoming</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
+              <label>Venue<input name="venue" defaultValue={editingEvent?.venue||''} required /></label>
+              <label>Eligibility<input name="eligibility" defaultValue={editingEvent?.eligibility||''} placeholder="Who can participate?" /></label>
+              <label>Description<textarea name="description" defaultValue={editingEvent?.description||''} rows={3} required /></label>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                 <button type="button" className="button outline" onClick={() => setEventModal(false)}>Cancel</button>
-                <button className="button">Create Event</button>
+                <button className="button" disabled={eventBusy}>{eventBusy?'Saving…':editingEvent?'Save changes':'Publish event'}</button>
               </div>
             </form>
           </div>

@@ -33,6 +33,12 @@ class SignupEmailOTPTests(TestCase):
    self.assertEqual(login.json()['user']['authorization']['dashboard_url'],'/dashboard/')
    self.client.logout()
   self.assertEqual(len(mail.outbox),mail_count)
+ def test_code_cannot_verify_a_different_email(self):
+  response=self.client.post('/api/register/',self.payload,content_type='application/json')
+  otp=re.search(r'code is: (\d{6})',mail.outbox[0].body).group(1)
+  response=self.client.post('/api/email/verify-otp/',{'challenge_id':response.json()['challenge_id'],'otp':otp,'email':'another@example.test'},content_type='application/json')
+  self.assertEqual(response.status_code,403)
+  self.assertFalse(Profile.objects.get(user__email=self.payload['email']).email_verified)
  def test_existing_account_not_forced_to_verify(self):
   user=User.objects.create_user(username='old@example.test',email='old@example.test',password='ExistingPass!2026')
   Profile.objects.create(user=user,roles=['student'],email_verified=False)

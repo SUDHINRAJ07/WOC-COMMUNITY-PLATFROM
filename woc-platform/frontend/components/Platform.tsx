@@ -40,22 +40,10 @@ function NotificationBell(){
   return()=>document.removeEventListener('pointerdown',outside);
  },[]);
 
- async function markAll(){
-  if(demo){toast('Notifications marked as read in demo mode.');setOpen(false);return}
-  try{
-   await api('/notifications/','PATCH',{all:true});
-   qc.invalidateQueries({queryKey:['notifications']});
-  }catch{}
- }
-
- async function markItem(id:number){
-  if(demo){setOpen(false);return}
-  try{
-   await api('/notifications/','PATCH',{id});
-   qc.invalidateQueries({queryKey:['notifications']});
-  }catch{}
- }
-
+ const tap=useRef({id:0,time:0});
+ const marking=useRef(false);
+ useEffect(()=>{const ids=list.filter((n:any)=>!n.read).map((n:any)=>n.id);if(!open||demo||!ids.length||marking.current)return;marking.current=true;api('/notifications/','PATCH',{ids}).then(()=>qc.invalidateQueries({queryKey:['notifications']})).catch(()=>{}).finally(()=>{marking.current=false})},[open,data,demo]);
+ function openNotification(n:any){const path=n.target_url||'/dashboard/?tab=notifications';if(path.startsWith('/')&&!path.startsWith('//')&&!path.includes('\\'))window.location.href=path}
  return <div className="bell-container" ref={popoverRef}>
   <button type="button" className="bell-btn" aria-label={`Notifications ${unreadCount>0?`(${unreadCount} unread)`:''}`} onClick={()=>setOpen(!open)}>
    <Bell size={20}/>
@@ -65,12 +53,12 @@ function NotificationBell(){
    <div className="notification-popover" role="region" aria-label="Notifications list">
     <div className="popover-header">
      <strong>Notifications</strong>
-     {unreadCount>0&&<button type="button" onClick={markAll} className="text-link" style={{fontSize:'12px',background:'none',border:'none',cursor:'pointer'}}>Mark all read</button>}
+
     </div>
     <div className="popover-body">
      {list.length>0?(
-      list.map((n:{id:number;message:string;read:boolean;created_at?:string})=>(
-       <div key={n.id} className={`popover-item ${!n.read?'unread':''}`} onClick={()=>markItem(n.id)} style={{cursor:'pointer'}}>
+      list.map((n:{id:number;message:string;read:boolean;created_at?:string;target_url?:string})=>(
+       <div key={n.id} className={`popover-item ${!n.read?'unread':''}`} role="link" tabIndex={0} onDoubleClick={()=>openNotification(n)} onKeyDown={e=>{if(e.key==='Enter')openNotification(n)}} onPointerUp={e=>{if(e.pointerType!=='touch')return;const now=Date.now();if(tap.current.id===n.id&&now-tap.current.time<450){tap.current={id:0,time:0};openNotification(n)}else tap.current={id:n.id,time:now}}} style={{cursor:'pointer'}}>
         <span style={{fontWeight:!n.read?600:400}}>{n.message}</span>
         {n.created_at&&<span className="time">{new Date(n.created_at).toLocaleDateString('en-IN',{month:'short',day:'numeric'})}</span>}
        </div>
@@ -80,8 +68,8 @@ function NotificationBell(){
      )}
     </div>
     <div className="popover-footer">
-     <Link href={user?.authorization?.dashboard_url||"/dashboard/"} onClick={()=>setOpen(false)} className="text-link" style={{fontSize:'12px',fontWeight:600}}>
-      Go to Dashboard →
+     <Link href={user?.authorization?.dashboard_url==='/dashboard/'?'/dashboard/?tab=notifications':user?.authorization?.dashboard_url||'/dashboard/?tab=notifications'} onClick={()=>setOpen(false)} className="text-link" style={{fontSize:'12px',fontWeight:600}}>
+      View all notifications →
      </Link>
     </div>
    </div>

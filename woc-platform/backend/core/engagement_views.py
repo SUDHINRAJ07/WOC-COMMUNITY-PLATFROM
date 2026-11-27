@@ -4,7 +4,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 
@@ -53,6 +53,9 @@ def serialize_event(event: CampusEvent, user=None):
         'institution_name': event.institution.name,
         'title': event.title,
         'event_type': event.event_type,
+        'organizer_name': event.organizer_name,
+        'organizer_contact': event.organizer_contact,
+        'poster_url': f'/api/campus/events/{event.pk}/poster/' if event.poster_image else '',
         'description': event.description,
         'eligibility': event.eligibility,
         'venue': event.venue,
@@ -160,6 +163,8 @@ def college_events(request):
         created_by=request.user,
         **serializer.validated_data
     )
+    audience=User.objects.filter(is_active=True,groups__name='student').distinct() if event.visibility=='public' else User.objects.filter(is_active=True,college_memberships__institution=college,college_memberships__role='student',college_memberships__status='active').distinct()
+    Notification.objects.bulk_create([Notification(user=student,message=f"{college.name}: New event '{event.title}'."[:250],target_url=f"/dashboard/?tab=engagement&event={event.pk}") for student in audience],batch_size=500)
     return Response(serialize_event(event), status=201)
 
 
@@ -199,7 +204,7 @@ def college_event_detail(request, pk):
 
     old_date = event.event_date
     old_status = event.status
-    serializer = CampusEventSerializer(data=request.data, partial=True)
+    serializer = CampusEventSerializer(data=request.data, partial=True, context={"event":event})
     serializer.is_valid(raise_exception=True)
     for k, v in serializer.validated_data.items():
         setattr(event, k, v)
@@ -215,7 +220,7 @@ def college_event_detail(request, pk):
     if notify_msg:
         active_regs = event.registrations.filter(status=EventRegistration.Status.REGISTERED).select_related('student')
         for r in active_regs:
-            Notification.objects.create(user=r.student, message=notify_msg)
+            Notification.objects.create(user=r.student, message=notify_msg,target_url=f"/dashboard/?tab=engagement&event={event.pk}")
 
     return Response(serialize_event(event))
 
@@ -512,6 +517,14 @@ def student_engagement_overview(request):
         for e in events_qs.filter(status__in=[CampusEvent.Status.UPCOMING, CampusEvent.Status.ONGOING])[:20]
     ]
 
+    requested=request.query_params.get('event')
+    if requested:
+        import uuid
+        try: requested=uuid.UUID(requested)
+        except (ValueError,TypeError): requested=None
+        if requested:
+            selected=events_qs.filter(pk=requested).first()
+            if selected: upcoming_events=[serialize_event(selected,user)]+[e for e in upcoming_events if e['id']!=str(selected.pk)]
     my_regs = EventRegistration.objects.filter(student=user).select_related('event', 'event__institution').order_by('-registered_at')
     my_events = [
         {
@@ -607,6 +620,7 @@ def student_event_register(request, pk):
 
         Notification.objects.create(
             user=user,
+            target_url=f"/dashboard/?tab=engagement&event={event.pk}",
             message=f"{event.institution.name}: Registration confirmed for '{event.title}'."[:250]
         )
 
@@ -627,6 +641,7 @@ def student_event_cancel(request, pk):
 
     Notification.objects.create(
         user=user,
+        target_url=f"/dashboard/?tab=engagement&event={event.pk}",
         message=f"{event.institution.name}: Your registration for '{event.title}' has been cancelled."[:250]
     )
     return Response(serialize_event(event, user))
@@ -773,3 +788,21 @@ def super_admin_moderate_engagement(request):
         metadata={'target_id': str(target_id), 'note': note}
     )
     return Response({'message': f'{kind.capitalize()} {action}ed successfully.', 'target_id': str(target_id), 'action': action})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def event_poster(request,pk):
+    from django.http import FileResponse,Http404
+    from .organization_access import is_super_admin
+    event=get_object_or_404(CampusEvent.objects.select_related('institution'),pk=pk,institution__approval_status='approved')
+    if event.status=='suspended' and not is_super_admin(request.user):raise Http404
+    if event.visibility!='public' and not is_super_admin(request.user) and not active_colleges(request.user).filter(institution=event.institution).exists():raise Http404
+    if not event.poster_image:raise Http404
+    try:stream=event.poster_image.open('rb')
+    except (OSError,ValueError):raise Http404
+    import mimetypes
+    response=FileResponse(stream,content_type=mimetypes.guess_type(event.poster_image.name)[0] or 'application/octet-stream')
+    response['X-Content-Type-Options']='nosniff'
+    response['Cache-Control']='private, no-store'
+    return response

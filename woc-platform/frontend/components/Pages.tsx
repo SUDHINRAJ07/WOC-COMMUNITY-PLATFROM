@@ -5,7 +5,7 @@ import {JoinCommunity,OrganizationRegistration} from './PortalRegistration';
 
 import {redirectAfterAuthentication} from '@/lib/api';
 
-import {useEffect,useState,ReactNode} from 'react';
+import {useEffect,useState,useRef,ReactNode} from 'react';
 
 import Link from 'next/link';
 
@@ -19,7 +19,7 @@ import 'swiper/css';import 'swiper/css/pagination';
 
 import {Users,BookOpen,Briefcase,Rocket,Calendar,Globe,Trophy,Music,Check,MapPin,Clock,Search,ChevronLeft,ChevronRight,Pause,Play,ShieldCheck,GraduationCap,Lightbulb,HeartHandshake,CheckCircle,Layers} from 'lucide-react';
 
-import {useQuery} from '@tanstack/react-query';
+import {useQuery,useQueryClient} from '@tanstack/react-query';
 
 import {useForm} from 'react-hook-form';
 
@@ -882,150 +882,16 @@ export function Auth({mode,registrationRole}:{mode:string;registrationRole?:'col
 }
 
 function NotificationsView({notifications,refetch}:{notifications:any;refetch:()=>void}){
-
- const {demo,toast}=useWoc();
-
- const [busy,setBusy]=useState(false);
-
- const unreadCount=demo?1:(notifications?.unread_count||0);
-
- const items=demo?[{id:1,message:'Welcome to THE WOC student community! Explore programs in the Academy or register for campus events.',read:false,created_at:new Date().toISOString()}]:(notifications?.results||[]);
-
-
-
- async function markAll(){
-
-  if(demo){toast('Marked all as read in demo mode.');return}
-
-  setBusy(true);
-
-  try{
-
-   await api('/notifications/','PATCH',{all:true});
-
-   refetch();
-
-   toast('All notifications marked as read.');
-
-  }catch(e:any){toast(e.message||'Failed to mark notifications as read.')}
-
-  finally{setBusy(false)}
-
- }
-
-
-
- async function markSingle(id:number){
-
-  if(demo){toast('Marked as read.');return}
-
-  try{
-
-   await api('/notifications/','PATCH',{id});
-
-   refetch();
-
-  }catch{}
-
- }
-
-
-
- return <div className="notifications-container">
-
-  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
-
-   <div>
-
-    <h2 style={{margin:0,fontSize:'22px'}}>All Notifications</h2>
-
-    <p style={{margin:'4px 0 0',fontSize:'13px',color:'var(--muted)'}}>
-
-     {unreadCount>0?`You have ${unreadCount} unread update${unreadCount>1?'s':''}.`:'All notifications are up to date.'}
-
-    </p>
-
-   </div>
-
-   {unreadCount>0&&(
-
-    <button className="button outline small" disabled={busy} onClick={markAll}>
-
-     Mark all as read
-
-    </button>
-
-   )}
-
-  </div>
-
-  {items.length>0?(
-
-   <div className="notification-list">
-
-    {items.map((n:{id:number;message:string;read:boolean;created_at?:string})=>(
-
-     <div key={n.id} className={`notification-card ${!n.read?'unread':''}`}>
-
-      <div style={{flex:1}}>
-
-       <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'6px'}}>
-
-        {!n.read&&<span className="notification-dot" title="Unread"/>}
-
-        <strong style={{fontSize:'14px',color:'var(--ink)'}}>{n.message}</strong>
-
-       </div>
-
-       {n.created_at&&(
-
-        <small style={{color:'var(--muted)',fontSize:'12px'}}>
-
-         {new Date(n.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}
-
-        </small>
-
-       )}
-
-      </div>
-
-      {!n.read&&(
-
-       <button
-
-        type="button"
-
-        className="button outline small"
-
-        style={{fontSize:'11px',padding:'4px 10px',flexShrink:0}}
-
-        onClick={()=>markSingle(n.id)}
-
-       >
-
-        Mark read
-
-       </button>
-
-      )}
-
-     </div>
-
-    ))}
-
-   </div>
-
-  ):(
-
-   <Empty title="You’re all caught up." text="Updates about your course enrollments, event registrations, and campus opportunities will appear here."/>
-
-  )}
-
- </div>;
-
+ const {demo,user}=useWoc();const qc=useQueryClient();const seen=useRef('');const taps=useRef({id:0,time:0});const [error,setError]=useState('');
+ const items=notifications?.results||[];const signature=items.filter((n:any)=>!n.read).map((n:any)=>n.id).join(',');
+ useEffect(()=>{if(demo||!signature||seen.current===signature)return;seen.current=signature;
+  const ids=signature.split(',').map(Number);
+  api('/notifications/','PATCH',{ids}).then(()=>{qc.setQueryData(['notifications',user?.id],(old:any)=>old?{...old,unread_count:Math.max(0,old.unread_count-ids.length),results:old.results.map((n:any)=>ids.includes(n.id)?{...n,read:true}:n)}:old);refetch()}).catch(()=>setError('Could not update read status. Reopen notifications to retry.'));
+ },[signature,demo,user?.id]);
+ function open(n:any){const path=n.target_url||'/dashboard/?tab=profile';if(path.startsWith('/')&&!path.startsWith('//')&&!path.includes('\\'))window.location.href=path}
+ return <div className="notifications-container"><h2 style={{fontSize:22,marginBottom:8}}>All Notifications</h2><p style={{fontSize:13,marginBottom:20}}>Double-click or double-tap an update to open its related page.</p>{error&&<p role="alert" className="form-error">{error}</p>}
+ {items.length?<div className="record-list">{items.map((n:any)=><div key={n.id} role="link" tabIndex={0} aria-label={`${n.message}. Open related update`} className="notification-linked-card" onDoubleClick={()=>open(n)} onPointerUp={e=>{if(e.pointerType!=='touch')return;const now=Date.now();if(taps.current.id===n.id&&now-taps.current.time<450){taps.current={id:0,time:0};open(n)}else taps.current={id:n.id,time:now}}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();open(n)}}}><strong>{n.message}</strong><time dateTime={n.created_at}>{new Date(n.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</time><span className="notification-open-label">Open update →</span></div>)}</div>:<Empty title="You’re all caught up." text="Updates about your learning, events and account will appear here."/>}</div>;
 }
-
-
 
 function Dashboard(){
 

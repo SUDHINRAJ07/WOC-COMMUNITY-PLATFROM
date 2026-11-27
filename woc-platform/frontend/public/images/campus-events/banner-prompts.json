@@ -1,0 +1,31 @@
+{
+  "generator": "Built-in image_gen",
+  "style": "Wide 16:9 editorial photography; WOC crimson, cream, charcoal; clean title band; no dates, college names or logos",
+  "banners": [
+    {
+      "file": "dance-fest-2026.png",
+      "title": "CAMPUS DANCE FEST",
+      "scene": "Indian college students performing an energetic contemporary group dance on a tasteful auditorium stage with warm spotlights, balanced male and female performers, elegant deep crimson costumes with varied ivory and navy accents."
+    },
+    {
+      "file": "hackathon-2026.png",
+      "title": "BUILD TOGETHER",
+      "scene": "Indian university students, women and men in varied casual outfits, collaborating at laptops in a modern campus innovation lab, visible electronics and whiteboard, focused energetic hackathon atmosphere."
+    },
+    {
+      "file": "marathon-2026.png",
+      "title": "CAMPUS RUN",
+      "scene": "Indian women and men university students jogging a campus tree-lined track at sunrise, varied athletic outfits in crimson navy teal and white, wide environmental action composition, natural anatomically correct runners."
+    },
+    {
+      "file": "tallyprime-workshop-2026.png",
+      "title": "TALLYPRIME WORKSHOP",
+      "scene": "Indian young adult commerce students and a professional instructor in a bright accounting computer training classroom. Men and women with varied appearances and professional casual clothing. Monitors viewed naturally from front side showing generic accounting tables without readable software logos."
+    },
+    {
+      "file": "renewable-energy-expo-2026.png",
+      "title": "FUTURE ENERGY EXPO",
+      "scene": "Indian women and men engineering students demonstrating a small solar panel and tabletop wind turbine prototype at a university project exhibition, bright airy engineering hall, sustainability innovation mood."
+    }
+  ]
+}

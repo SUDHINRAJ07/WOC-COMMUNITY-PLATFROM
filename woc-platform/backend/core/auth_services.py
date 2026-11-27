@@ -464,8 +464,8 @@ def send_sms_otp(phone_number, otp):
     if provider == 'ninzasms':
         api_key = getattr(settings, 'NINZASMS_API_KEY', '').strip()
         api_url = getattr(settings, 'NINZASMS_API_URL', 'https://ninzasms.in.net/auth/send_sms.php').strip()
-        sender_id = getattr(settings, 'NINZASMS_SENDER_ID', '16402')
-        if not api_key or not api_url:
+        sender_id = str(getattr(settings, 'NINZASMS_SENDER_ID', '')).strip()
+        if not api_key or not api_url or not sender_id or not sender_id.isdigit() or int(sender_id)<=0:
             raise MessageDeliveryError('Mobile OTP service is not configured. Please contact support.')
         try:
             indian_mobile = normalize_indian_mobile(phone_number)
@@ -488,13 +488,17 @@ def send_sms_otp(phone_number, otp):
             with urllib.request.urlopen(req, timeout=10) as response:
                 raw_body = response.read().decode('utf-8', errors='replace')
             try:
-                result = json.loads(raw_body) if raw_body.strip() else {}
+                result = json.loads(raw_body)
             except ValueError:
-                result = {'raw': raw_body}
-
-            status_flag = result.get('return', result.get('status', result.get('success')))
-            msg_text = str(result.get('message', '') or result.get('error', '')).lower()
-            if status_flag is False or str(status_flag).lower() in ['false', 'error', 'failed']:
+                raise MessageDeliveryError('SMS gateway returned an invalid response. Please try again shortly.')
+            if not isinstance(result, dict):
+                raise MessageDeliveryError('SMS gateway returned an invalid response. Please try again shortly.')
+            # NinzaSMS documents status=1 as acceptance, status=0 as rejection.
+            # Retain explicit legacy success flags; never infer success from HTTP 200.
+            status_flag = result.get('status', result.get('return', result.get('success')))
+            accepted = status_flag is True or str(status_flag).strip().lower() in ['1', 'true', 'success', 'sent', 'accepted', 'queued']
+            msg_text = str(result.get('msg', '') or result.get('message', '') or result.get('error', '')).lower()
+            if not accepted:
                 logger.warning('NinzaSMS rejected OTP for %s', mask_phone_number(phone_number))
                 if 'balance' in msg_text or 'credit' in msg_text:
                     raise MessageDeliveryError('SMS delivery is temporarily unavailable due to gateway balance limits.')

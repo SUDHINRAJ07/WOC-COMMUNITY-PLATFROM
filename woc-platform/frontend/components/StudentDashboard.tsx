@@ -62,7 +62,7 @@ export function StudentDashboard({
   const [tab, setTab] = useState<TabKey>('Overview');
   const [openNavGroup,setOpenNavGroup]=useState<string|null>(null);
   useEffect(()=>{setOpenNavGroup(NAV_GROUPS.find(group=>group.tabs.includes(tab))?.label||null)},[tab]);
-  useEffect(()=>{if(new URLSearchParams(window.location.search).get('tab')==='profile')setTab('My Profile')},[]);
+  useEffect(()=>{const key=new URLSearchParams(window.location.search).get('tab');const map:Record<string,TabKey>={profile:'My Profile',college:'My College',learning:'My Learning',batches:'My Batches',engagement:'Campus Engagement',certificates:'Certificates',notifications:'Notifications'};if(key&&map[key])setTab(map[key])},[]);
   useEffect(()=>{
     const shell=document.querySelector<HTMLElement>('.student-dashboard');
     if(!shell)return;
@@ -76,6 +76,7 @@ export function StudentDashboard({
   });
 
   const [selectedRecord, setSelectedRecord] = useState<Registration | null>(null);
+  useEffect(()=>{const id=new URLSearchParams(window.location.search).get('record');if(id){const record=records.find(r=>r.id===id);if(record){setTab('My Learning');setSelectedRecord(record)}}},[records]);
   const [otherModuleFilter, setOtherModuleFilter] = useState<string>('all');
 
   // Search & Filter states
@@ -901,48 +902,86 @@ export function StudentDashboard({
                   </div>
                 ) : (
                   <>
-                    <div className="record-list">
-                      {oppsData.results.map((o: any) => {
+                    <div className="three-grid">
+                      {oppsData.results.map((rawOpp: any) => {
+                        const o = rawOpp?.sample_listing
+                          ? {
+                              ...rawOpp,
+                              title: rawOpp.title?.replace(/\s*\(demo[^)]*\)/gi, '').replace(/\bdemo\s*/gi, '').trim(),
+                              company_name: rawOpp.company_name?.replace(/\s*\(demo[^)]*\)/gi, '').replace(/\bdemo\s*/gi, '').trim(),
+                              compensation: rawOpp.compensation?.replace(/\s*\(demo[^)]*\)/gi, '').replace(/\bdemo\s*/gi, '').trim(),
+                            }
+                          : rawOpp;
                         const isSaved = savedIdSet.has(o.id);
+                        const initials = (o.company_name || 'CO')
+                          .split(' ')
+                          .slice(0, 2)
+                          .map((part: string) => part[0])
+                          .join('');
                         return (
-                          <div key={o.id} className="record" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                            <div style={{ flex: 1, minWidth: '260px' }}>
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                                <span className="label">{o.opportunity_type}</span>
-                                <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{o.work_mode.replace('_', '-')}</span>
-                                {o.compensation && <span style={{ fontSize: '12px', fontWeight: 600 }}>{o.compensation}</span>}
-                              </div>
-                              <h3 style={{ margin: '4px 0' }}>
-                                <Link href={`/careers/opportunity/?id=${o.id}`}>{o.title}</Link>
-                              </h3>
-                              <p style={{ margin: '0 0 6px', fontSize: '13px', color: 'var(--muted)' }}>
-                                {o.company_name} • {o.location || o.company_city || 'India'}
-                              </p>
-                              {o.required_skills?.length > 0 && (
-                                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                                  Skills: {o.required_skills.slice(0, 5).join(', ')}
-                                </div>
+                          <article key={o.id} className="career-opportunity-card">
+                            <div className="career-card-top">
+                              <span className="career-type-badge">
+                                {o.opportunity_type === 'internship' ? 'Internship' : 'Job'}
+                              </span>
+                              <span>{String(o.work_mode || '').replaceAll('_', ' ')}</span>
+                            </div>
+                            <div className="career-company-row">
+                              {o.company_logo ? (
+                                <img className="career-company-logo" src={o.company_logo} alt={o.company_name} />
+                              ) : (
+                                <span className="career-company-monogram" aria-label={`${o.company_name} logo`}>
+                                  {initials}
+                                </span>
                               )}
+                              <div>
+                                <strong>{o.company_name}</strong>
+                                <p>{o.location || o.company_city || 'India'}</p>
+                              </div>
                             </div>
-
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              <button
-                                className="button small outline"
-                                onClick={() => handleToggleBookmark(o.id)}
-                                title={isSaved ? 'Remove bookmark' : 'Save opportunity'}
-                              >
-                                <Bookmark size={14} style={{ marginRight: '4px', fill: isSaved ? 'currentColor' : 'none' }} />
-                                {isSaved ? 'Saved' : 'Save'}
-                              </button>
-                              <button className="button small" onClick={() => handleExternalClick(o)}>
-                                <ExternalLink size={14} style={{ marginRight: '4px' }} />
-                                Apply Externally
-                              </button>
-                              <button className="button small outline" onClick={() => setTrackModalOpp(o)}>
-                                Track Status
-                              </button>
+                            <h3>
+                              <Link href={`/careers/opportunity/?id=${o.id}`}>{o.title}</Link>
+                            </h3>
+                            {o.sample_listing && <span className="career-sample-label">Sample listing</span>}
+                            <p className="career-card-description">{o.description}</p>
+                            <div className="career-skill-tags">
+                              {o.required_skills?.slice(0, 3).map((skill: string) => (
+                                <span key={skill}>{skill}</span>
+                              ))}
                             </div>
-                          </div>
+                            <div className="career-card-footer" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
+                              <strong>{o.compensation || (o.is_paid ? 'Paid' : 'Unpaid')}</strong>
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'nowrap', width: '100%' }}>
+                                <button
+                                  type="button"
+                                  className="button small outline"
+                                  style={{ flex: 1, padding: '7px 8px', fontSize: '12px', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                                  onClick={() => handleToggleBookmark(o.id)}
+                                  title={isSaved ? 'Remove bookmark' : 'Save opportunity'}
+                                >
+                                  <Bookmark size={13} style={{ marginRight: '4px', fill: isSaved ? 'currentColor' : 'none' }} />
+                                  {isSaved ? 'Saved' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="button small"
+                                  style={{ flex: 1, padding: '7px 8px', fontSize: '12px', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                                  onClick={() => handleExternalClick(o)}
+                                >
+                                  <ExternalLink size={13} style={{ marginRight: '4px' }} />
+                                  Apply
+                                </button>
+                                <button
+                                  type="button"
+                                  className="button small outline"
+                                  style={{ flex: 1, padding: '7px 8px', fontSize: '12px', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                                  onClick={() => setTrackModalOpp(o)}
+                                >
+                                  Track
+                                </button>
+                              </div>
+                            </div>
+                          </article>
                         );
                       })}
                     </div>

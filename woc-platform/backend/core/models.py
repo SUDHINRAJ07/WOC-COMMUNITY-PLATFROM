@@ -108,6 +108,7 @@ class Certificate(models.Model):
  issued_by=models.ForeignKey(User,on_delete=models.PROTECT)
 
 class Notification(models.Model):
+ target_url=models.CharField(max_length=500,blank=True)
  user=models.ForeignKey(User,on_delete=models.CASCADE)
  message=models.CharField(max_length=250)
  read=models.BooleanField(default=False)
@@ -395,6 +396,10 @@ class SavedOpportunity(models.Model):
 
 
 class OpportunityApplicationLog(models.Model):
+ email_delivery_state=models.CharField(max_length=12,blank=True)
+ email_consent_at=models.DateTimeField(null=True,blank=True)
+ email_submitted_at=models.DateTimeField(null=True,blank=True)
+ emailed_recipient=models.EmailField(blank=True)
  class Status(models.TextChoices):
   CLICKED='clicked','External Link Clicked'
   APPLIED='applied','Applied'
@@ -420,7 +425,11 @@ class OpportunityApplicationLog(models.Model):
 
 
 class CampusEvent(models.Model):
+ organizer_name=models.CharField(max_length=200,blank=True)
+ organizer_contact=models.CharField(max_length=150,blank=True)
+ poster_image=models.ImageField(upload_to="campus/posters/%Y/%m/",blank=True)
  class EventType(models.TextChoices):
+  SYMPOSIUM='symposium','Symposium'
   TECHNICAL='technical','Technical Event'
   WORKSHOP='workshop','Workshop'
   WEBINAR='webinar','Webinar'

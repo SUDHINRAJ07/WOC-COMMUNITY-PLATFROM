@@ -670,6 +670,7 @@ function OpportunityFormTab({ editingOpp, defaultType, onSaved, onCancel }: any)
   const [error, setError] = useState('');
 
   const [oppType, setOppType] = useState<'job' | 'internship'>(editingOpp?.opportunity_type || defaultType);
+  const [applicationMode,setApplicationMode]=useState(editingOpp?.recruitment_email?(editingOpp?.careers_url?'both':'email'):(editingOpp?.careers_url?'website':'both'));
 
 
 
@@ -696,6 +697,8 @@ function OpportunityFormTab({ editingOpp, defaultType, onSaved, onCancel }: any)
     data.required_skills = data.skills_input ? data.skills_input.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
 
     delete data.skills_input;
+    if(applicationMode==='website')data.recruitment_email='';
+    if(applicationMode==='email')data.careers_url='';
 
 
 
@@ -950,25 +953,25 @@ function OpportunityFormTab({ editingOpp, defaultType, onSaved, onCancel }: any)
 
         <div className="panel" style={{ background: 'var(--cream)', borderColor: '#E8E5DF' }}>
 
-          <h4 style={{ margin: '0 0 8px' }}>Application Destination (At least one required for approval)</h4>
+          <h4 style={{ margin: '0 0 8px' }}>Application Destination (At least one required for approval)</h4><label>How should students apply?<select value={applicationMode} onChange={e=>setApplicationMode(e.target.value)}><option value="both">WOC email application and official website</option><option value="email">Apply through WOC — profile and PDF resume by email</option><option value="website">Official website only</option></select></label>
 
           <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '0 0 16px' }}>
 
-            Students will apply directly to your organization through one of these verified channels.
+            Choose how you want to receive applications. WOC email applications include student-consented profile details and their PDF resume.
 
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
 
-            <label>Recruitment Application Email
+            <label hidden={applicationMode==='website'}>Recruitment Application Email
 
-              <input name="recruitment_email" type="email" defaultValue={editingOpp?.recruitment_email || ''} placeholder="jobs@company.com" />
+              <input name="recruitment_email" type="email" disabled={applicationMode==='website'} required={applicationMode==='email'} defaultValue={editingOpp?.recruitment_email || ''} placeholder="jobs@company.com" />
 
             </label>
 
-            <label>Official Careers Webpage Link (HTTPS)
+            <label hidden={applicationMode==='email'}>Official Careers Webpage Link (HTTPS)
 
-              <input name="careers_url" type="url" defaultValue={editingOpp?.careers_url || ''} placeholder="https://company.com/apply/job-id" />
+              <input name="careers_url" type="url" disabled={applicationMode==='email'} required={applicationMode==='website'} defaultValue={editingOpp?.careers_url || ''} placeholder="https://company.com/apply/job-id" />
 
             </label>
 

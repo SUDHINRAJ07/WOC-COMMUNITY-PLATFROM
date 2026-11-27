@@ -18,6 +18,21 @@ DEFAULT_ROLE_PERMISSIONS = {
 
 
 class CampusEventSerializer(StrictInputSerializer):
+    organizer_name = serializers.CharField(max_length=200,required=False,allow_blank=True)
+    organizer_contact = serializers.CharField(max_length=150,required=False,allow_blank=True)
+    poster_image = serializers.ImageField(required=False)
+
+    def validate_poster_image(self, value):
+        import uuid
+        if value.size > 5*1024*1024:
+            raise serializers.ValidationError("Poster must be up to 5 MB.")
+        image_format = getattr(value,"image",None).format
+        extensions={"JPEG":"jpg","PNG":"png","WEBP":"webp"}
+        if image_format not in extensions:
+            raise serializers.ValidationError("Use a JPG, PNG or WebP image.")
+        value.name=uuid.uuid4().hex+"."+extensions[image_format]
+        return value
+
     title = serializers.CharField(max_length=200)
     event_type = serializers.ChoiceField(choices=CampusEvent.EventType.choices)
     description = serializers.CharField(max_length=5000)
@@ -40,9 +55,10 @@ class CampusEventSerializer(StrictInputSerializer):
     )
 
     def validate(self, attrs):
-        start = attrs.get('event_date')
-        end = attrs.get('end_date')
-        deadline = attrs.get('registration_deadline')
+        existing = self.context.get('event')
+        start = attrs.get('event_date',getattr(existing,'event_date',None))
+        end = attrs.get('end_date',getattr(existing,'end_date',None))
+        deadline = attrs.get('registration_deadline',getattr(existing,'registration_deadline',None))
         if start and end and end < start:
             raise serializers.ValidationError({'end_date': 'End date cannot be earlier than event start date.'})
         if start and deadline and deadline > start:

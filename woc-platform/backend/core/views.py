@@ -312,7 +312,9 @@ def send_email_otp_view(request):
   u=request.user
  else:
   email=raw_email
-  if not email or '@' not in email or len(email)>254:
+  try: validate_email(email)
+  except ValidationError: return Response({'error':'Enter a valid email address.'},status=400)
+  if len(email)>254:
    return Response({'error':'Enter a valid email address.'},status=400)
   u=User.objects.filter(email=email).first()
   if not u or not hasattr(u,'profile'):
@@ -642,11 +644,17 @@ def notifications(request):
   notif_id=request.data.get('id')
   if mark_all:
    Notification.objects.filter(user=request.user,read=False).update(read=True)
+  elif 'ids' in request.data:
+   ids=request.data['ids']
+   if not isinstance(ids,list) or len(ids)>50 or any(type(i) is not int for i in ids):
+    return Response({'error':'Provide up to 50 notification IDs.'},status=400)
+   Notification.objects.filter(user=request.user,id__in=ids,read=False).update(read=True)
   elif notif_id:
    Notification.objects.filter(user=request.user,id=notif_id).update(read=True)
   unread=Notification.objects.filter(user=request.user,read=False).count()
   return Response({'message':'Notifications updated.','unread_count':unread})
- notifs=list(Notification.objects.filter(user=request.user).order_by('-created_at').values('id','message','read','created_at')[:50])
+ from .notification_links import notification_destination
+ notifs=[{'id':n.id,'message':n.message,'read':n.read,'created_at':n.created_at,'target_url':notification_destination(n)} for n in Notification.objects.filter(user=request.user).order_by('-created_at')[:50]]
  unread=Notification.objects.filter(user=request.user,read=False).count()
  return Response({'results':notifs,'unread_count':unread})
 

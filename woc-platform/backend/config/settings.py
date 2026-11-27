@@ -88,7 +88,7 @@ EMAIL_SIGNUP_OTP_REQUIRED=os.getenv('EMAIL_SIGNUP_OTP_REQUIRED','false').lower()
 SMS_DEV_MODE=os.getenv('SMS_DEV_MODE','false').lower()=='true'
 SMS_TEST_MODE=os.getenv('SMS_TEST_MODE','false').lower()=='true'
 NINZASMS_API_KEY=os.getenv('NINZASMS_API_KEY','')
-NINZASMS_SENDER_ID=os.getenv('NINZASMS_SENDER_ID','16402')
+NINZASMS_SENDER_ID=os.getenv('NINZASMS_SENDER_ID','')
 NINZASMS_API_URL=os.getenv('NINZASMS_API_URL','https://ninzasms.in.net/auth/send_sms.php')
 TWILIO_ACCOUNT_SID=os.getenv('TWILIO_ACCOUNT_SID','')
 TWILIO_AUTH_TOKEN=os.getenv('TWILIO_AUTH_TOKEN','')

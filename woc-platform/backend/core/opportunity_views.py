@@ -47,6 +47,7 @@ def serialize_opportunity(opp: Opportunity, include_moderation=False):
     data = {
         'id': str(opp.pk),
         'company_id': str(opp.company_id),
+        'sample_listing': opp.company.contact_email.lower().endswith('@woc-demo.test'),
         'company_name': opp.company.name,
         'company_logo': opp.company.logo_url,
         'company_city': opp.company.city,
